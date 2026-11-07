@@ -19,7 +19,19 @@ uv sync --extra dev --extra ui
 
 ```bash
 uv run pytest
+uv run pytest --cov=gridpulse --cov-report=term-missing
 ```
+
+Coverage floor: 75% (see `AGENT.md`).
+
+## Demo + UI
+
+```bash
+uv run gridpulse --inject-faults --jsonl events.jsonl
+uv run streamlit run src/gridpulse/ui/app.py
+```
+
+Agent runbook: [AGENT.md](AGENT.md).
 
 ## Package layout
 

@@ -37,7 +37,13 @@ pythonpath = ["src"]
 [tool.coverage.run]
 source = ["gridpulse"]
 branch = true
+omit = [
+    "src/gridpulse/ui/app.py",  # Streamlit entry; covered by live verify
+]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 75
 show_missing = true
+omit = [
+    "src/gridpulse/ui/app.py",
+]
