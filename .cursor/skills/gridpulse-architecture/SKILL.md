@@ -9,14 +9,17 @@ description: Module map, allowed imports, and domain-types-first guidance for Gr
 
 | Package | Owns |
 |---------|------|
-| `network` | Pluggable loader; pandapower net isolation |
+| `network` | Pluggable loader + synthetic layout; pandapower net isolation |
 | `telemetry` | Measurement schemas, history, synthetic ticks |
 | `quality` | Validators; `PowerflowGate` Run\|Skip |
 | `powerflow` | Apply sample + PF run + converged result |
 | `anomaly` | Measurement-fault detectors; `AnomalyEvent` |
 | `pipeline` | `run_tick` / `run_batch`; JSONL + stdout |
-| `ui` | Streamlit + Plotly over Stage 6 events |
+| `ui` | Streamlit helpers + Plotly over Stage 6 events |
 | `config` | Settings / thresholds |
+| `simulator` | Continuous live JSONL appender |
+
+Top-level minirepos (own venvs): `packages/gridpulse`, `data-simulator`, `streamlit-app`, `web-server`, `web-client`.
 
 ## Allowed imports
 

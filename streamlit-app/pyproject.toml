@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gridpulse-streamlit-app"
+version = "0.1.0"
+description = "Streamlit + Plotly Grid Pulse UI (kept alongside deck.gl)"
+requires-python = ">=3.11"
+dependencies = [
+    "gridpulse[ui]",
+]
+
+[tool.uv.sources]
+gridpulse = { path = "../packages/gridpulse", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gridpulse_streamlit_app"]
