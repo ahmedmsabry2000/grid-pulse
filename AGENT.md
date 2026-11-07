@@ -51,7 +51,7 @@ uv run gridpulse-simulate --interval 1 --inject-rate 0.1 --seed 42
 uv run streamlit run src/gridpulse/ui/app.py
 ```
 
-Open http://localhost:8501. Path is shown read-only (no picker/upload). Use **Run powerflow** on the latest tick to see rating exceedances and ensemble anomalies as orthogonal panels.
+Open http://localhost:8501. Path is shown read-only (no picker/upload). The live chart plots **all channels** as colored traces (legend; no channel dropdown). Use **Run powerflow** to freeze an immutable snapshot of the stream up to that click plus PF / rating / ensemble panels; live ticks only feed the *next* click. Prev/Next navigates older snapshots (default: latest).
 
 ### Batch (non-live) alternative
 
