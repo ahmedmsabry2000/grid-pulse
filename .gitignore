@@ -11,3 +11,6 @@ build/
 !tests/fixtures/*.jsonl
 .DS_Store
 .streamlit/secrets.toml
+
+# GitHub Projects script cache (local ids)
+scripts/github/.cache/

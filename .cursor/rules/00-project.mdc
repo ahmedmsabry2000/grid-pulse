@@ -1,12 +1,13 @@
 ---
-description: Grid Pulse project goal, local-only git, stage order, locked decisions
+description: Grid Pulse project goal, GitHub remote + Spec workflow, stage order, locked decisions
 alwaysApply: true
 ---
 
 # Grid Pulse — project
 
 - Goal: real-time power grid anomaly detection (pandapower + measurement-fault MVP).
-- Checkout: `~/dev/personal/gridpulse`. Local commits only; no remote push until asked.
+- Checkout: `~/dev/personal/gridpulse`. Remote: `https://github.com/ahmedmsabry2000/grid-pulse.git`.
+- Work tracking: Spec → Issue → Project **Grid Pulse** via `scripts/github/` (see `50-github-projects` + skill `gridpulse-github-workflow`).
 - Stage order: 0 scaffold → 1 network → 2 telemetry → 3 quality gate → 4 powerflow → 5 anomaly → 6 pipeline → 7 UI → 8 hardening.
 - Locked decisions live in Project store `docs/project-context.md` / `preferences.md`. Do not reopen without plan revision.
 - Default network: IEEE case14 via pluggable `load_network`. Anomalies: measurement faults only; reserve room for future `pf_residual`. Discrete offline batch ticks. Hard-skip PF on any quality failure.
