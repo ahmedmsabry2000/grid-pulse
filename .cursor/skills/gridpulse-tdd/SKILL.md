@@ -7,7 +7,7 @@ description: Red-green-refactor playbook and pytest patterns for Grid Pulse.
 
 ## When to use
 
-Before writing or changing production code in `src/gridpulse/`.
+Before writing or changing production code in `packages/gridpulse/` (or other minirepos).
 
 ## Playbook
 

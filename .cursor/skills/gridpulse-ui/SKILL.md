@@ -18,7 +18,8 @@ description: Streamlit + Plotly time-series UI conventions for Grid Pulse Stage 
 ```bash
 uv sync --extra ui
 uv run gridpulse-simulate --interval 1 --inject-rate 0.1
-uv run streamlit run src/gridpulse/ui/app.py
+# from streamlit-app/ with its venv; events path via cwd or GRIDPULSE_EVENTS_PATH
+streamlit run ../packages/gridpulse/src/gridpulse/ui/app.py
 ```
 
 ## Modules

@@ -4,7 +4,20 @@ import copy
 
 import pytest
 
-from gridpulse.network import UnknownNetworkError, load_network, register_network
+from gridpulse.network import (
+    UnknownNetworkError,
+    list_networks,
+    load_network,
+    register_network,
+)
+
+
+def test_list_networks_includes_defaults() -> None:
+    names = list_networks()
+    assert "case9" in names
+    assert "case14" in names
+    assert "case30" in names
+    assert names == sorted(names)
 
 
 def test_load_case14_default() -> None:

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gridpulse-data-simulator"
+version = "0.1.0"
+description = "Continuous Grid Pulse events.jsonl writer (separate OS process)"
+requires-python = ">=3.11"
+dependencies = [
+    "gridpulse",
+]
+
+[tool.uv.sources]
+gridpulse = { path = "../packages/gridpulse", editable = true }
+
+[project.scripts]
+gridpulse-simulate = "gridpulse.simulator.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gridpulse_data_simulator"]

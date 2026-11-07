@@ -1,61 +1,49 @@
 # Grid Pulse
 
-Real-time power grid anomaly detection: pandapower network context, quality-gated powerflows, measurement-fault anomalies, JSONL events, and a Streamlit + Plotly time-series UI.
+Real-time power grid anomaly detection: pandapower network context, quality-gated powerflows, measurement-fault anomalies, JSONL events, Streamlit UI, and a deck.gl + WebSocket UI.
 
-## Requirements
+## Minirepos (own venv / node_modules each)
 
-- Python 3.11+
-- Local git commits only until a remote is requested
+| Path | Purpose |
+|------|---------|
+| [`packages/gridpulse/`](packages/gridpulse/) | Core library + layout |
+| [`data-simulator/`](data-simulator/) | Continuous events writer |
+| [`streamlit-app/`](streamlit-app/) | Streamlit + Plotly (kept) |
+| [`web-server/`](web-server/) | FastAPI REST + WS |
+| [`web-client/`](web-client/) | React/Vite + deck.gl |
 
-## Setup
+See [AGENT.md](AGENT.md) for full setup and the three-process live demo.
 
-```bash
-uv sync --extra dev
-# UI (Stage 7+):
-uv sync --extra dev --extra ui
-```
-
-## Tests
-
-```bash
-uv run pytest
-uv run pytest --cov=gridpulse --cov-report=term-missing
-```
-
-Coverage floor: 75% (see `AGENT.md`).
-
-## Demo + UI (two processes)
+## Quick start (deck.gl)
 
 ```bash
-# Terminal A — live simulator (separate OS process)
-uv run gridpulse-simulate --interval 1 --inject-rate 0.1
+# once per folder
+cd packages/gridpulse && uv venv && source .venv/bin/activate && uv sync --extra dev --extra ui
+cd ../../data-simulator && uv venv && source .venv/bin/activate && uv sync
+cd ../web-server && uv venv && source .venv/bin/activate && uv sync --extra dev
+cd ../web-client && npm install
 
-# Terminal B — UI auto-tails events.jsonl (or GRIDPULSE_EVENTS_PATH)
-uv run streamlit run src/gridpulse/ui/app.py
+# three terminals from repo root / web-client
+data-simulator/.venv/bin/gridpulse-simulate --interval 1 --inject-rate 0.1
+GRIDPULSE_EVENTS_PATH="$PWD/events.jsonl" web-server/.venv/bin/uvicorn gridpulse_server.app:app --port 8000
+cd web-client && npm run dev
 ```
 
-Batch alternative: `uv run gridpulse --inject-faults --jsonl events.jsonl`.
-
-Agent runbook: [AGENT.md](AGENT.md).
-
-## Package layout
+## Package layout (core)
 
 ```
-src/gridpulse/
-  network/     # pluggable pandapower loader (default case14)
+packages/gridpulse/src/gridpulse/
+  network/     # loader + synthetic layout (GeoJSON-ready)
   telemetry/   # schemas + synthetic / historical ticks
   quality/     # validators + hard powerflow gate
   powerflow/   # PF runner
   anomaly/     # measurement-fault + rating + ensemble detectors
   pipeline/    # tick / batch orchestration + JSONL
   simulator/   # continuous live appender (CLI: gridpulse-simulate)
-  ui/          # Streamlit + Plotly app
+  ui/          # Streamlit helpers + powerflow panel
   config/      # settings + events path
-tests/
-  unit/
-  integration/
 ```
 
 ## Locked decisions
 
-See Project store `docs/project-context.md` and `preferences.md`. Default network is IEEE case14; anomalies are measurement faults; discrete offline batch ticks; hard-skip PF on quality failure.
+See Project store `docs/project-context.md` and `preferences.md`. Default network is IEEE case14; anomalies are measurement faults; discrete offline batch ticks; hard-skip PF on quality failure; geometry is synthetic (no real GIS).

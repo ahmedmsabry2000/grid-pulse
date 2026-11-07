@@ -2,11 +2,47 @@
 
 Local checkout: `~/dev/personal/gridpulse`. Remote: `https://github.com/ahmedmsabry2000/grid-pulse.git`. Spec → Issue → Project via `scripts/github/`. Project store docs are source of truth for locked decisions.
 
-## Setup
+## Minirepo layout (own venv each)
+
+| Path | Role |
+|------|------|
+| `packages/gridpulse/` | Installable core (`-e` target for Python minirepos) |
+| `data-simulator/` | Continuous `events.jsonl` writer (separate OS process) |
+| `streamlit-app/` | Streamlit + Plotly UI (**kept**; not replaced by deck.gl) |
+| `web-server/` | FastAPI REST + WebSocket |
+| `web-client/` | React/Vite + deck.gl |
+
+**No shared root venv.** Each folder has its own `.venv` / `node_modules`.
+
+```mermaid
+flowchart LR
+  Sim[data-simulator] -->|events.jsonl| API[web-server]
+  API -->|WS telemetry| FE[web-client]
+  FE -->|GET networks| API
+  FE -->|POST powerflow| API
+  API -->|layout coords| FE
+  ST[streamlit-app] --> Core[packages/gridpulse]
+  API --> Core
+  Sim --> Core
+```
+
+## Setup (per minirepo)
 
 ```bash
-cd ~/dev/personal/gridpulse
-uv sync --extra dev --extra ui
+# Core
+cd packages/gridpulse && uv venv && source .venv/bin/activate && uv sync --extra dev --extra ui
+
+# Simulator
+cd data-simulator && uv venv && source .venv/bin/activate && uv sync
+
+# Streamlit
+cd streamlit-app && uv venv && source .venv/bin/activate && uv sync
+
+# API
+cd web-server && uv venv && source .venv/bin/activate && uv sync --extra dev
+
+# Frontend
+cd web-client && npm install
 ```
 
 Python ≥3.11 (CI-local uses 3.12 via uv).
@@ -14,53 +50,71 @@ Python ≥3.11 (CI-local uses 3.12 via uv).
 ## Tests
 
 ```bash
-uv run pytest
-uv run pytest --cov=gridpulse --cov-report=term-missing
+cd packages/gridpulse && uv run pytest --cov=gridpulse --cov-report=term-missing
+cd web-server && uv run pytest
+cd web-client && npm test && npm run build
 ```
 
-Coverage floor: **75%** (Streamlit `ui/app.py` omitted). Stage exit = green tests + stage note under Project store `docs/stages/`.
+Coverage floor (core): **75%** (Streamlit `ui/app.py` omitted).
+
+## Live demo — three processes
+
+Shared coupling is only the events file path (`events.jsonl` in cwd, or `GRIDPULSE_EVENTS_PATH`). Prefer running simulator + API from **repo root** so the path matches.
+
+**Terminal A — simulator:**
+
+```bash
+cd ~/dev/personal/gridpulse
+data-simulator/.venv/bin/gridpulse-simulate --interval 1 --inject-rate 0.1 --seed 42
+```
+
+**Terminal B — API:**
+
+```bash
+cd ~/dev/personal/gridpulse
+GRIDPULSE_EVENTS_PATH="$PWD/events.jsonl" web-server/.venv/bin/uvicorn gridpulse_server.app:app --host 127.0.0.1 --port 8000
+```
+
+**Terminal C — deck.gl UI:**
+
+```bash
+cd web-client && npm run dev
+```
+
+Open http://localhost:5173. Network dropdown + **Run powerflow**. Live ticks arrive over WS.
+
+### Streamlit (still supported)
+
+```bash
+cd streamlit-app && source .venv/bin/activate
+streamlit run ../packages/gridpulse/src/gridpulse/ui/app.py
+```
+
+Open http://localhost:8501. Same events path rules as before. Prev/Next snapshot pages unchanged.
+
+### Batch (non-live) alternative
+
+```bash
+packages/gridpulse/.venv/bin/gridpulse --ticks 20 --inject-faults --jsonl events.jsonl
+```
+
+Golden UI fixture: `packages/gridpulse/tests/fixtures/golden_events.jsonl`.
 
 ## Stages 0–8 (order)
 
 | Stage | Focus | Key check |
 |-------|--------|-----------|
-| 0 | Scaffold, rules, skills | `tests/unit/test_smoke.py` |
-| 1 | `load_network` | `tests/unit/test_network_loader.py` |
-| 2 | Telemetry | `tests/unit/test_telemetry.py` |
-| 3 | Quality gate | `tests/unit/test_quality_gate.py` |
-| 4 | Powerflow | `tests/unit/test_powerflow.py` |
-| 5 | Anomalies | `tests/unit/test_anomaly.py` |
-| 6 | Pipeline/CLI | `tests/integration/test_pipeline.py` |
-| 7 | Streamlit UI | `tests/unit/test_ui_events.py` + live UI |
+| 0 | Scaffold, rules, skills | `test_smoke.py` |
+| 1 | `load_network` | `test_network_loader.py` |
+| 2 | Telemetry | `test_telemetry.py` |
+| 3 | Quality gate | `test_quality_gate.py` |
+| 4 | Powerflow | `test_powerflow.py` |
+| 5 | Anomalies | `test_anomaly.py` |
+| 6 | Pipeline/CLI | `test_pipeline.py` |
+| 7 | Streamlit UI | `test_ui_events.py` + live UI |
 | 8 | Hardening | coverage + golden fixtures + this file |
 
-## Two-process live demo (simulator + UI)
-
-The simulator and Streamlit are **separate OS processes**. The UI must not spawn or embed the simulator. Shared coupling is only the events file path (`events.jsonl` in cwd, or `GRIDPULSE_EVENTS_PATH`).
-
-**Terminal A — simulator (appends continuously):**
-
-```bash
-uv run gridpulse-simulate --interval 1 --inject-rate 0.1 --seed 42
-# optional: --full-coverage  (default is sparse meters)
-```
-
-**Terminal B — UI (auto-tails the same path):**
-
-```bash
-uv run streamlit run src/gridpulse/ui/app.py
-```
-
-Open http://localhost:8501. Path is shown read-only (no picker/upload). The live chart plots **all channels** as colored traces (legend; no channel dropdown). Use **Run powerflow** to freeze an immutable snapshot of the stream up to that click plus PF / rating / ensemble panels; live ticks only feed the *next* click. Prev/Next navigates older snapshots (default: latest).
-
-### Batch (non-live) alternative
-
-```bash
-uv run gridpulse --ticks 20 --inject-faults --jsonl events.jsonl
-uv run streamlit run src/gridpulse/ui/app.py
-```
-
-Golden UI fixture: `tests/fixtures/golden_events.jsonl`.
+Post-8: synthetic layout (`gridpulse.network.layout`), FastAPI/WS, deck.gl client, minirepo split.
 
 ## Cursor
 
@@ -70,4 +124,4 @@ Golden UI fixture: `tests/fixtures/golden_events.jsonl`.
 
 ## Deferred (do not build without plan revision)
 
-Remote/SCADA, gate severity tiers, PF residual productization, strict mypy, in-app simulator start/stop.
+Remote/SCADA, gate severity tiers, PF residual productization, strict mypy, in-app simulator start/stop, real GIS / Mapbox requirement.

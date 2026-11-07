@@ -1,4 +1,5 @@
 .venv/
+**/.venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,10 +8,14 @@ __pycache__/
 htmlcov/
 dist/
 build/
+node_modules/
+web-client/dist/
+*.tsbuildinfo
 *.jsonl
-!tests/fixtures/*.jsonl
+!**/tests/fixtures/*.jsonl
 .DS_Store
 .streamlit/secrets.toml
+# Root no longer has a shared lock; minirepo uv.lock files are committed.
 
 # GitHub Projects script cache (local ids)
 scripts/github/.cache/

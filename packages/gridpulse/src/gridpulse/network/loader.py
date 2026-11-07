@@ -16,13 +16,20 @@ class UnknownNetworkError(ValueError):
 NetworkFactory = Callable[[], Any]
 
 _REGISTRY: dict[str, NetworkFactory] = {
+    "case9": pn.case9,
     "case14": pn.case14,
+    "case30": pn.case30,
 }
 
 
 def register_network(name: str, factory: NetworkFactory) -> None:
     """Register a network factory under ``name`` (overwrites if present)."""
     _REGISTRY[name] = factory
+
+
+def list_networks() -> list[str]:
+    """Return sorted registry ids (not file paths)."""
+    return sorted(_REGISTRY)
 
 
 def load_network(name_or_path: str = "case14") -> Any:
