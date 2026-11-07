@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, TextIO
 
-from gridpulse.anomaly import detect_measurement_anomalies
+from gridpulse.anomaly import detect_measurement_anomalies, detect_rating_exceedances
 from gridpulse.config import DEFAULT_SETTINGS, Settings
 from gridpulse.network import load_network
 from gridpulse.powerflow import run_powerflow
@@ -21,6 +21,24 @@ def _measurement_dict(m: Measurement) -> dict[str, Any]:
     }
 
 
+def _anomaly_dict(a: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "type": a.type.value,
+        "signal_id": a.signal_id,
+        "timestamp": a.timestamp.isoformat(),
+        "value": a.value,
+        "score": a.score if a.score != float("inf") else "inf",
+        "detail": a.detail,
+    }
+    if a.quantity is not None:
+        payload["quantity"] = a.quantity
+    if a.limit is not None:
+        payload["limit"] = a.limit
+    if a.margin is not None:
+        payload["margin"] = a.margin
+    return payload
+
+
 def run_tick(
     sample: list[Measurement],
     *,
@@ -32,12 +50,13 @@ def run_tick(
     settings: Settings = DEFAULT_SETTINGS,
     net: Any | None = None,
 ) -> dict[str, Any]:
-    """Run one discrete tick: gate → optional PF → measurement anomalies."""
+    """Run one discrete tick: gate → optional PF → anomalies (measurement + rating)."""
     store = history or HistoricalStore.from_ticks(history_ticks or [])
     working_net = net if net is not None else load_network(network)
     gate = PowerflowGate().decide(sample, previous=previous, net=working_net)
 
     pf_payload: dict[str, Any] = {"ran": False, "converged": None, "error": None}
+    rating_events: list[Any] = []
     if gate.action is GateDecision.RUN:
         result = run_powerflow(working_net, sample, gate=gate)
         pf_payload = {
@@ -45,13 +64,20 @@ def run_tick(
             "converged": result.converged,
             "error": result.error,
         }
+        # Rating exceedance is independent of historical anomaly scoring.
+        if result.converged and result.net is not None:
+            ts = sample[0].timestamp if sample else None
+            if ts is not None:
+                rating_events = detect_rating_exceedances(result.net, timestamp=ts)
 
+    # Historical measurement anomalies — never suppressed by rating outcomes.
     anomalies = detect_measurement_anomalies(
         sample,
         store,
         z_threshold=settings.z_threshold,
         spike_threshold=settings.spike_threshold,
     )
+    anomalies = list(anomalies) + list(rating_events)
 
     return {
         "tick_index": tick_index,
@@ -60,17 +86,7 @@ def run_tick(
             "reason": None if gate.reason is None else gate.reason.value,
         },
         "powerflow": pf_payload,
-        "anomalies": [
-            {
-                "type": a.type.value,
-                "signal_id": a.signal_id,
-                "timestamp": a.timestamp.isoformat(),
-                "value": a.value,
-                "score": a.score if a.score != float("inf") else "inf",
-                "detail": a.detail,
-            }
-            for a in anomalies
-        ],
+        "anomalies": [_anomaly_dict(a) for a in anomalies],
         "measurements": [_measurement_dict(m) for m in sample],
     }
 

@@ -83,3 +83,40 @@ def test_series_frame_and_figure(tmp_path: Path) -> None:
     fig = build_timeseries_figure(df, signal_id="bus_1_vm_pu")
     assert fig is not None
     assert len(fig.data) >= 1
+
+
+def test_series_frame_marks_rating_exceedance_tick_level(tmp_path: Path) -> None:
+    """Rating events use object ids; still mark the tick for any selected signal."""
+    records = [
+        {
+            "tick_index": 0,
+            "gate": {"action": "run", "reason": None},
+            "powerflow": {"ran": True, "converged": True, "error": None},
+            "anomalies": [
+                {
+                    "type": "rating_exceedance",
+                    "signal_id": "line:0",
+                    "timestamp": "2026-01-01T00:00:00+00:00",
+                    "value": 120.0,
+                    "score": 20.0,
+                    "detail": "loading_percent over",
+                    "quantity": "loading_percent",
+                    "limit": 100.0,
+                    "margin": -20.0,
+                }
+            ],
+            "measurements": [
+                {
+                    "timestamp": "2026-01-01T00:00:00+00:00",
+                    "signal_id": "bus_1_vm_pu",
+                    "value": 1.0,
+                    "quality": "good",
+                }
+            ],
+        }
+    ]
+    p = tmp_path / "events.jsonl"
+    p.write_text(json.dumps(records[0]) + "\n", encoding="utf-8")
+    df = series_frame(load_events(p), signal_id="bus_1_vm_pu")
+    assert bool(df.loc[0, "is_anomaly"])
+    assert "rating_exceedance" in df.loc[0, "anomaly_types"]

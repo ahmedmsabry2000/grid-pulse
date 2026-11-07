@@ -32,6 +32,7 @@ def _hist(values: list[float], signal_id: str = "bus_1_vm_pu") -> HistoricalStor
 def test_anomaly_type_reserves_pf_residual() -> None:
     assert AnomalyType.MEASUREMENT_SPIKE.value == "measurement_spike"
     assert AnomalyType.MEASUREMENT_ZSCORE.value == "measurement_zscore"
+    assert AnomalyType.RATING_EXCEEDANCE.value == "rating_exceedance"
     assert AnomalyType.PF_RESIDUAL.value == "pf_residual"
     # Reserved only — no residual detector implementation in MVP
 

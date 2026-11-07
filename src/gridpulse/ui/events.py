@@ -31,8 +31,12 @@ def series_frame(events: list[dict[str, Any]], signal_id: str) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for ev in events:
         meas = next((m for m in ev.get("measurements", []) if m["signal_id"] == signal_id), None)
+        # Signal-scoped anomalies plus tick-level rating exceedance markers
+        # (object ids like line:0 do not match measurement signal ids).
         anomaly_hits = [
-            a for a in ev.get("anomalies", []) if a.get("signal_id") == signal_id
+            a
+            for a in ev.get("anomalies", [])
+            if a.get("signal_id") == signal_id or a.get("type") == "rating_exceedance"
         ]
         rows.append(
             {
