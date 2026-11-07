@@ -10,6 +10,7 @@ dist/
 build/
 node_modules/
 web-client/dist/
+*.tsbuildinfo
 *.jsonl
 !**/tests/fixtures/*.jsonl
 .DS_Store
