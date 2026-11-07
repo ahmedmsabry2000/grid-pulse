@@ -5,12 +5,14 @@ description: Measurement-fault anomaly contracts; room for future PF residual de
 
 # Grid Pulse anomaly
 
-## MVP (measurement faults + rating)
+## MVP (measurement faults + rating + ensemble)
 
 - Detectors: spike/jump, z-score vs history; range/missing primarily via quality gate.
 - Rating exceedance: after gate Run + converged PF, compare loadings/currents to object limits.
-- Emit `AnomalyEvent` with type for measurement faults and `rating_exceedance`.
+- Historical ensemble: unit-interval members (spike, z-score, Isolation Forest) → weighted average → `measurement_ensemble` with member score breakdown.
+- Emit `AnomalyEvent` for measurement faults, `rating_exceedance`, and `measurement_ensemble`.
 - Seeded weird readings must fire; clean noise stays under threshold.
+- Isolation Forest fits on history batch only (no online streaming fit); pin `scikit-learn`.
 
 ## Orthogonality
 
