@@ -4,7 +4,12 @@ import json
 from pathlib import Path
 from typing import Any, TextIO
 
-from gridpulse.anomaly import detect_measurement_anomalies, detect_rating_exceedances
+from gridpulse.anomaly import (
+    EnsembleConfig,
+    detect_ensemble_anomalies,
+    detect_measurement_anomalies,
+    detect_rating_exceedances,
+)
 from gridpulse.config import DEFAULT_SETTINGS, Settings
 from gridpulse.network import load_network
 from gridpulse.powerflow import run_powerflow
@@ -36,6 +41,8 @@ def _anomaly_dict(a: Any) -> dict[str, Any]:
         payload["limit"] = a.limit
     if a.margin is not None:
         payload["margin"] = a.margin
+    if a.member_scores is not None:
+        payload["member_scores"] = a.member_scores
     return payload
 
 
@@ -50,7 +57,7 @@ def run_tick(
     settings: Settings = DEFAULT_SETTINGS,
     net: Any | None = None,
 ) -> dict[str, Any]:
-    """Run one discrete tick: gate → optional PF → anomalies (measurement + rating)."""
+    """Run one discrete tick: gate → optional PF → anomalies (measurement + rating + ensemble)."""
     store = history or HistoricalStore.from_ticks(history_ticks or [])
     working_net = net if net is not None else load_network(network)
     gate = PowerflowGate().decide(sample, previous=previous, net=working_net)
@@ -77,7 +84,15 @@ def run_tick(
         z_threshold=settings.z_threshold,
         spike_threshold=settings.spike_threshold,
     )
-    anomalies = list(anomalies) + list(rating_events)
+    ensemble_cfg = EnsembleConfig(
+        threshold=settings.ensemble_threshold,
+        spike_threshold=settings.spike_threshold,
+        z_threshold=settings.z_threshold,
+        random_state=settings.ensemble_random_state,
+    )
+    # Ensemble is independent of rating exceedance — never suppress either side.
+    ensemble_events = detect_ensemble_anomalies(sample, store, config=ensemble_cfg)
+    anomalies = list(anomalies) + list(ensemble_events) + list(rating_events)
 
     return {
         "tick_index": tick_index,

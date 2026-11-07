@@ -9,6 +9,7 @@ class AnomalyType(str, Enum):
     MEASUREMENT_SPIKE = "measurement_spike"
     MEASUREMENT_ZSCORE = "measurement_zscore"
     RATING_EXCEEDANCE = "rating_exceedance"
+    MEASUREMENT_ENSEMBLE = "measurement_ensemble"
     # Reserved for future physics residual detectors (F2) — not implemented in MVP:
     PF_RESIDUAL = "pf_residual"
 
@@ -25,3 +26,5 @@ class AnomalyEvent:
     quantity: str | None = None
     limit: float | None = None
     margin: float | None = None
+    # Ensemble payload (optional; independent of rating exceedance)
+    member_scores: dict[str, float] | None = None
