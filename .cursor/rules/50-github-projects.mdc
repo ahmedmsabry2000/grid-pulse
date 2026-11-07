@@ -1,0 +1,13 @@
+---
+description: Spec → Issue → Project → implement via scripts/github (gh CLI only)
+alwaysApply: true
+---
+
+# GitHub Projects workflow
+
+- Remote: `https://github.com/ahmedmsabry2000/grid-pulse.git`. Issues only; Effort S/M/L; Project **Grid Pulse**.
+- Flow: fill Spec → `scripts/github/new-issue-from-spec.sh` → implement → `scripts/github/project-set-status.sh`.
+- Prefer scripts over hand-rolled `gh` / GraphQL when a script exists.
+- Bootstrap once with `scripts/github/bootstrap-project.sh` (labels + Project fields).
+- Do not use GitHub MCP for this workflow; local `gh` + git only.
+- Push is allowed for this repo once Spec/Issue work is on the board (see `40-commits`).

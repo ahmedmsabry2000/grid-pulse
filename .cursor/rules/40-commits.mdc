@@ -1,11 +1,12 @@
 ---
-description: Local commits only; stage-scoped messages; no remote push until asked
+description: Commit hygiene; push allowed via GitHub Spec→Issue→Project workflow
 alwaysApply: true
 ---
 
 # Commits
 
-- Local commits only. Do not `git push` unless the operator explicitly asks.
-- Stage-scoped commit messages (e.g. `stage0: scaffold package, rules, skills`).
-- Commit after each stage exit (green tests + stage note).
+- Remote `origin` is `https://github.com/ahmedmsabry2000/grid-pulse.git`. Push is allowed for work tracked through Spec → Issue → Project (`scripts/github/`).
+- Prefer Spec/Issue-linked branches (`cursor/<name>-f9a7`) and stage-scoped or issue-scoped commit messages.
+- Commit after each stage exit (green tests + stage note) or after finishing Spec acceptance.
 - Never force-push; never amend unless explicitly requested and conditions allow.
+- Do not push secrets or local caches (`scripts/github/.cache/`).
