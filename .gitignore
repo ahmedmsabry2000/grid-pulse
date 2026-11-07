@@ -8,5 +8,6 @@ htmlcov/
 dist/
 build/
 *.jsonl
+!tests/fixtures/*.jsonl
 .DS_Store
 .streamlit/secrets.toml
