@@ -27,6 +27,7 @@ ui = [
 
 [project.scripts]
 gridpulse = "gridpulse.pipeline.cli:main"
+gridpulse-simulate = "gridpulse.simulator.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gridpulse"]

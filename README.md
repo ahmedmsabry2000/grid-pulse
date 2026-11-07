@@ -24,12 +24,17 @@ uv run pytest --cov=gridpulse --cov-report=term-missing
 
 Coverage floor: 75% (see `AGENT.md`).
 
-## Demo + UI
+## Demo + UI (two processes)
 
 ```bash
-uv run gridpulse --inject-faults --jsonl events.jsonl
+# Terminal A — live simulator (separate OS process)
+uv run gridpulse-simulate --interval 1 --inject-rate 0.1
+
+# Terminal B — UI auto-tails events.jsonl (or GRIDPULSE_EVENTS_PATH)
 uv run streamlit run src/gridpulse/ui/app.py
 ```
+
+Batch alternative: `uv run gridpulse --inject-faults --jsonl events.jsonl`.
 
 Agent runbook: [AGENT.md](AGENT.md).
 
@@ -41,10 +46,11 @@ src/gridpulse/
   telemetry/   # schemas + synthetic / historical ticks
   quality/     # validators + hard powerflow gate
   powerflow/   # PF runner
-  anomaly/     # measurement-fault detectors
+  anomaly/     # measurement-fault + rating + ensemble detectors
   pipeline/    # tick / batch orchestration + JSONL
+  simulator/   # continuous live appender (CLI: gridpulse-simulate)
   ui/          # Streamlit + Plotly app
-  config/      # settings
+  config/      # settings + events path
 tests/
   unit/
   integration/

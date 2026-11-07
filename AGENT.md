@@ -1,6 +1,6 @@
 # Grid Pulse — agent runbook
 
-Local checkout: `~/dev/personal/gridpulse`. **Local commits only** until a remote is requested. Project store docs are source of truth for locked decisions.
+Local checkout: `~/dev/personal/gridpulse`. Remote: `https://github.com/ahmedmsabry2000/grid-pulse.git`. Spec → Issue → Project via `scripts/github/`. Project store docs are source of truth for locked decisions.
 
 ## Setup
 
@@ -34,22 +34,40 @@ Coverage floor: **75%** (Streamlit `ui/app.py` omitted). Stage exit = green test
 | 7 | Streamlit UI | `tests/unit/test_ui_events.py` + live UI |
 | 8 | Hardening | coverage + golden fixtures + this file |
 
-## Headless demo + UI
+## Two-process live demo (simulator + UI)
+
+The simulator and Streamlit are **separate OS processes**. The UI must not spawn or embed the simulator. Shared coupling is only the events file path (`events.jsonl` in cwd, or `GRIDPULSE_EVENTS_PATH`).
+
+**Terminal A — simulator (appends continuously):**
+
+```bash
+uv run gridpulse-simulate --interval 1 --inject-rate 0.1 --seed 42
+# optional: --full-coverage  (default is sparse meters)
+```
+
+**Terminal B — UI (auto-tails the same path):**
+
+```bash
+uv run streamlit run src/gridpulse/ui/app.py
+```
+
+Open http://localhost:8501. Path is shown read-only (no picker/upload). Use **Run powerflow** on the latest tick to see rating exceedances and ensemble anomalies as orthogonal panels.
+
+### Batch (non-live) alternative
 
 ```bash
 uv run gridpulse --ticks 20 --inject-faults --jsonl events.jsonl
 uv run streamlit run src/gridpulse/ui/app.py
 ```
 
-Open http://localhost:8501 and select a signal. Markers: gate skips (x), anomalies (diamond).
-
 Golden UI fixture: `tests/fixtures/golden_events.jsonl`.
 
 ## Cursor
 
 - Rules (always): `.cursor/rules/`
-- Skills: `.cursor/skills/gridpulse-*` (incl. `gridpulse-ui`)
+- Skills: `.cursor/skills/gridpulse-*` (incl. `gridpulse-ui`, `gridpulse-github-workflow`)
+- Specs: `docs/specs/` → `scripts/github/new-issue-from-spec.sh`
 
 ## Deferred (do not build without plan revision)
 
-Remote/SCADA, wall-clock streaming, gate severity tiers, PF residual productization, strict mypy.
+Remote/SCADA, gate severity tiers, PF residual productization, strict mypy, in-app simulator start/stop.
