@@ -1,0 +1,11 @@
+---
+description: Local commits only; stage-scoped messages; no remote push until asked
+alwaysApply: true
+---
+
+# Commits
+
+- Local commits only. Do not `git push` unless the operator explicitly asks.
+- Stage-scoped commit messages (e.g. `stage0: scaffold package, rules, skills`).
+- Commit after each stage exit (green tests + stage note).
+- Never force-push; never amend unless explicitly requested and conditions allow.
