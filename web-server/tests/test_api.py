@@ -44,6 +44,16 @@ def test_health(client: TestClient) -> None:
     assert r.json()["status"] == "ok"
 
 
+def test_events_history(client: TestClient) -> None:
+    r = client.get("/events?limit=10")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["events"], list)
+    assert len(body["events"]) == 1
+    assert body["events"][0]["tick_index"] == 0
+    assert body["events"][0]["powerflow"]["ran"] is True
+
+
 def test_list_networks(client: TestClient) -> None:
     r = client.get("/networks")
     assert r.status_code == 200

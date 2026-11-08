@@ -60,6 +60,13 @@ export async function postPowerflow(networkId: string): Promise<PowerflowResult>
   return (await r.json()) as PowerflowResult;
 }
 
+export async function fetchEvents(limit = 500): Promise<unknown[]> {
+  const r = await fetch(`${API_BASE}/events?limit=${encodeURIComponent(String(limit))}`);
+  if (!r.ok) throw new Error(`events: ${r.status}`);
+  const body = (await r.json()) as { events: unknown[] };
+  return Array.isArray(body.events) ? body.events : [];
+}
+
 /** Fit OrthographicView to GeoJSON point extents with padding. */
 export function boundsFromTopology(topo: Topology): [number, number, number, number] {
   let minX = Infinity;

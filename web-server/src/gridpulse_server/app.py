@@ -52,6 +52,13 @@ def create_app(*, events_path: Path | None = None) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/events")
+    def events(limit: int = 500) -> dict[str, Any]:
+        """Return recent Stage 6 JSONL events for history scrubbing."""
+        cap = max(1, min(int(limit), 2000))
+        rows = _load_jsonl(Path(app.state.events_path))
+        return {"events": rows[-cap:], "path": str(app.state.events_path)}
+
     @app.get("/networks")
     def networks() -> dict[str, list[str]]:
         return {"networks": list_networks()}
