@@ -1,0 +1,10 @@
+---
+description: web-server — FastAPI REST + WebSocket over gridpulse core
+alwaysApply: true
+---
+
+# web-server
+
+- FastAPI: `GET /networks`, `GET /networks/{id}/topology`, `GET /events`, `POST /powerflow`, `WS /ws/telemetry`.
+- Own venv; editable `../packages/gridpulse`. Tail `events.jsonl` → WS fanout; do not run the simulator in-process.
+- Topology/layout comes from `PNetwork` / `layout_network`; keep CORS open for local Vite.

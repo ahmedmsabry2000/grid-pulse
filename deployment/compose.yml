@@ -1,0 +1,72 @@
+# Grid Pulse full stack — works with:
+#   docker compose -f deployment/compose.yml up --build
+#   podman compose -f deployment/compose.yml up --build
+#   podman-compose -f deployment/compose.yml up --build
+#
+# Optional Streamlit: add profile `streamlit`
+#   docker compose -f deployment/compose.yml --profile streamlit up --build
+
+name: gridpulse
+
+services:
+  data-simulator:
+    build:
+      context: ..
+      dockerfile: deployment/docker/data-simulator/Dockerfile
+    environment:
+      GRIDPULSE_EVENTS_PATH: /data/events.jsonl
+    volumes:
+      - events-data:/data
+    command:
+      [
+        "gridpulse-simulate",
+        "--interval",
+        "1",
+        "--inject-rate",
+        "0.15",
+        "--seed",
+        "42",
+      ]
+    restart: unless-stopped
+
+  web-server:
+    build:
+      context: ..
+      dockerfile: deployment/docker/web-server/Dockerfile
+    environment:
+      GRIDPULSE_EVENTS_PATH: /data/events.jsonl
+    volumes:
+      - events-data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - data-simulator
+    restart: unless-stopped
+
+  web-client:
+    build:
+      context: ..
+      dockerfile: deployment/docker/web-client/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - web-server
+    restart: unless-stopped
+
+  streamlit:
+    profiles: ["streamlit"]
+    build:
+      context: ..
+      dockerfile: deployment/docker/streamlit/Dockerfile
+    environment:
+      GRIDPULSE_EVENTS_PATH: /data/events.jsonl
+    volumes:
+      - events-data:/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      - data-simulator
+    restart: unless-stopped
+
+volumes:
+  events-data:

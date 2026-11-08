@@ -25,7 +25,7 @@ body,
 
 .app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   height: 100%;
 }
 
@@ -75,6 +75,35 @@ body,
   margin-left: auto;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.legend {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.lg::before {
+  content: "";
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.25rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.lg-meas::before {
+  background: #e27830;
+}
+
+.lg-pf::before {
+  background: #2ea0a0;
+}
+
+.lg-rate::before {
+  background: #c44848;
 }
 
 .main {
@@ -146,4 +175,102 @@ body,
 
 .err {
   color: var(--danger);
+}
+
+.history-controls {
+  padding: 0.55rem 1rem 0.7rem;
+  background: linear-gradient(180deg, #141a22 0%, #121820 100%);
+  border-bottom: 1px solid #2a3542;
+}
+
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.history-row label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.history-row input[type="range"] {
+  flex: 1 1 180px;
+  min-width: 140px;
+  accent-color: var(--accent);
+}
+
+.history-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-width: 12rem;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid #3a4a5c;
+  border-radius: 4px;
+  padding: 0.3rem 0.65rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.ghost:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.pf-timeline {
+  margin-top: 0.55rem;
+}
+
+.pf-timeline-track {
+  position: relative;
+  height: 1.35rem;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, #1c2834 0%, #243040 50%, #1c2834 100%);
+  border: 1px solid #2a3542;
+}
+
+.pf-mark {
+  position: absolute;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: -0.275rem;
+  transform: translateY(-50%);
+  border: none;
+  border-radius: 1px;
+  padding: 0;
+  cursor: pointer;
+  background: #2ea0a0;
+}
+
+.pf-mark.manual {
+  border-radius: 50%;
+  background: #e2b04a;
+}
+
+.pf-mark.bad {
+  background: var(--danger);
+}
+
+.pf-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #e8eef4;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.pf-timeline-caption {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
 }

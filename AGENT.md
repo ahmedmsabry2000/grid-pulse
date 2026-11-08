@@ -118,9 +118,13 @@ Post-8: synthetic layout (`gridpulse.network.layout`), FastAPI/WS, deck.gl clien
 
 ## Cursor
 
-- Rules (always): `.cursor/rules/`
+- Root rules (short): `.cursor/rules/`
+- Per-minirepo rules: `packages/gridpulse/.cursor/rules/`, `data-simulator/.cursor/rules/`, `streamlit-app/.cursor/rules/`, `web-server/.cursor/rules/`, `web-client/.cursor/rules/`
 - Skills: `.cursor/skills/gridpulse-*` (incl. `gridpulse-ui`, `gridpulse-github-workflow`)
 - Specs: `docs/specs/` → `scripts/github/new-issue-from-spec.sh`
+- Containers: `deployment/` (`docker compose` / `podman compose` / `podman-compose`) — see `deployment/README.md`
+
+Domain type: `PNetwork` in `packages/gridpulse` (pandapower + NetworkX). No raw pandapower mutation outside `PNetwork` methods.
 
 ## Deferred (do not build without plan revision)
 

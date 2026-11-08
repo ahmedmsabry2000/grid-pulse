@@ -1,12 +1,12 @@
 ---
-description: Commit hygiene; push allowed via GitHub Spec→Issue→Project workflow
+description: Commit hygiene; smoke before commit; push via Spec→Issue workflow
 alwaysApply: true
 ---
 
 # Commits
 
-- Remote `origin` is `https://github.com/ahmedmsabry2000/grid-pulse.git`. Push is allowed for work tracked through Spec → Issue → Project (`scripts/github/`).
-- Prefer Spec/Issue-linked branches (`cursor/<name>-f9a7`) and stage-scoped or issue-scoped commit messages.
-- Commit after each stage exit (green tests + stage note) or after finishing Spec acceptance.
+- Remote `origin` is `https://github.com/ahmedmsabry2000/grid-pulse.git`. Push is allowed for Spec → Issue → Project work (`scripts/github/`).
+- Before every commit: run the stack locally ≥1 continuous minute and confirm healthy logs (no crash loops / error spam; WS/ticks flowing when applicable). Prefer `deployment/` compose (docker or podman); else local run scripts. Do not commit or open a PR until that smoke passes; note what ran + verdict in the PR body.
+- Prefer Spec/Issue-linked branches (`cursor/<name>-b012`) and issue-scoped commit messages.
 - Never force-push; never amend unless explicitly requested and conditions allow.
 - Do not push secrets or local caches (`scripts/github/.cache/`).

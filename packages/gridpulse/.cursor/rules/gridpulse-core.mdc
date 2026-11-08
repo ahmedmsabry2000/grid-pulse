@@ -1,0 +1,13 @@
+---
+description: packages/gridpulse — PNetwork, package boundaries, Python conventions
+alwaysApply: true
+---
+
+# packages/gridpulse
+
+- Foundational type: `PNetwork` (pandapower net + NetworkX graph). `load_network` returns `PNetwork`.
+- Mutate pandapower state only via `PNetwork` methods (`apply_measurements`, `run_powerflow`, `set_*`, `copy`).
+- Pandapower imports stay in `network/` and `powerflow/`. Other packages use domain types / `PNetwork`.
+- Packages: `network`, `telemetry`, `quality`, `powerflow`, `anomaly`, `pipeline`, `ui`, `config`, `simulator`.
+- Python ≥3.11; modern generics; project `.venv` via `uv`. pytest-first; coverage floor 75%.
+- UI helpers read Stage 6 JSONL/events only — no second pipeline.

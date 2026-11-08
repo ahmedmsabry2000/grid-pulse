@@ -1,0 +1,10 @@
+---
+description: web-client — React/Vite + deck.gl live map
+alwaysApply: true
+---
+
+# web-client
+
+- React + Vite + deck.gl OrthographicView over synthetic coords (no real GIS / Mapbox requirement).
+- Consume REST + WS: overlay measurement anomalies, PF-output anomalies, rating exceedances; `fitBounds` on topology load/change.
+- Own `node_modules`; vitest for helpers; keep Streamlit as a separate surface.

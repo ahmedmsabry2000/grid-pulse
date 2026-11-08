@@ -1,4 +1,4 @@
-"""Pluggable pandapower network loader."""
+"""Pluggable network loader → PNetwork."""
 
 from collections.abc import Callable
 from copy import deepcopy
@@ -7,6 +7,8 @@ from typing import Any
 
 import pandapower as pp
 import pandapower.networks as pn
+
+from gridpulse.network.pnetwork import PNetwork
 
 
 class UnknownNetworkError(ValueError):
@@ -32,20 +34,20 @@ def list_networks() -> list[str]:
     return sorted(_REGISTRY)
 
 
-def load_network(name_or_path: str = "case14") -> Any:
-    """Load an isolated pandapower network by registry id or file path.
+def load_network(name_or_path: str = "case14") -> PNetwork:
+    """Load an isolated ``PNetwork`` by registry id or file path.
 
-    Returns a deep copy so callers cannot mutate the shared factory result
-    or contaminate subsequent loads.
+    Returns a deep-copied pandapower net wrapped as ``PNetwork`` so callers
+    cannot contaminate factory results or subsequent loads.
     """
     key = name_or_path
     if key in _REGISTRY:
-        net = _REGISTRY[key]()
-        return deepcopy(net)
+        net = deepcopy(_REGISTRY[key]())
+        return PNetwork.from_pandapower(key, net)
 
     path = Path(name_or_path)
     if path.is_file():
-        net = pp.from_json(str(path))
-        return deepcopy(net)
+        net = deepcopy(pp.from_json(str(path)))
+        return PNetwork.from_pandapower(str(path), net)
 
     raise UnknownNetworkError(f"Unknown network id or path: {name_or_path!r}")

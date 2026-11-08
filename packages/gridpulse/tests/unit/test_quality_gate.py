@@ -1,6 +1,5 @@
 """Stage 3: validators and hard powerflow gate."""
 
-from copy import deepcopy
 from datetime import datetime, timezone
 
 import pytest
@@ -74,19 +73,19 @@ def test_rate_of_change_skips() -> None:
 def test_topology_inconsistency_skips() -> None:
     # Signal references bus that does not exist on case14 (buses 1..14 typically)
     sample = [_m("bus_999_vm_pu", 1.0)]
-    net = load_network("case14")
-    decision = PowerflowGate().decide(sample, net=net)
+    pn = load_network("case14")
+    decision = PowerflowGate().decide(sample, network=pn)
     assert decision.action is GateDecision.SKIP
     assert decision.reason is ReasonCode.TOPOLOGY
 
 
 def test_gate_does_not_mutate_net() -> None:
-    net = load_network("case14")
-    before = deepcopy(net)
+    pn = load_network("case14")
+    before = pn.copy()
     sample = [_m("bus_1_vm_pu", 1.0)]
-    PowerflowGate().decide(sample, net=net)
-    assert net.bus.equals(before.bus)
-    assert net.load.equals(before.load)
+    PowerflowGate().decide(sample, network=pn)
+    assert pn.pp_net.bus.equals(before.pp_net.bus)
+    assert pn.pp_net.load.equals(before.pp_net.load)
 
 
 def test_validate_sample_reports_failures() -> None:

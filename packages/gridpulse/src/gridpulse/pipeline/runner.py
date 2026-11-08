@@ -11,7 +11,7 @@ from gridpulse.anomaly import (
     detect_rating_exceedances,
 )
 from gridpulse.config import DEFAULT_SETTINGS, Settings
-from gridpulse.network import load_network
+from gridpulse.network import PNetwork, load_network
 from gridpulse.powerflow import run_powerflow
 from gridpulse.quality import GateDecision, PowerflowGate
 from gridpulse.telemetry import HistoricalStore, Measurement
@@ -55,27 +55,27 @@ def run_tick(
     tick_index: int = 0,
     previous: list[Measurement] | None = None,
     settings: Settings = DEFAULT_SETTINGS,
-    net: Any | None = None,
+    pnetwork: PNetwork | None = None,
 ) -> dict[str, Any]:
     """Run one discrete tick: gate → optional PF → anomalies (measurement + rating + ensemble)."""
     store = history or HistoricalStore.from_ticks(history_ticks or [])
-    working_net = net if net is not None else load_network(network)
-    gate = PowerflowGate().decide(sample, previous=previous, net=working_net)
+    working = pnetwork if pnetwork is not None else load_network(network)
+    gate = PowerflowGate().decide(sample, previous=previous, network=working)
 
     pf_payload: dict[str, Any] = {"ran": False, "converged": None, "error": None}
     rating_events: list[Any] = []
     if gate.action is GateDecision.RUN:
-        result = run_powerflow(working_net, sample, gate=gate)
+        result = run_powerflow(working, sample, gate=gate)
         pf_payload = {
             "ran": True,
             "converged": result.converged,
             "error": result.error,
         }
         # Rating exceedance is independent of historical anomaly scoring.
-        if result.converged and result.net is not None:
+        if result.converged and result.network is not None:
             ts = sample[0].timestamp if sample else None
             if ts is not None:
-                rating_events = detect_rating_exceedances(result.net, timestamp=ts)
+                rating_events = detect_rating_exceedances(result.network, timestamp=ts)
 
     # Historical measurement anomalies — never suppressed by rating outcomes.
     anomalies = detect_measurement_anomalies(
@@ -117,7 +117,7 @@ def run_batch(
 ) -> list[dict[str, Any]]:
     """Run discrete offline batch; write JSONL + optional stdout mirror."""
     store = HistoricalStore.from_ticks(history_ticks or [])
-    net = load_network(network)
+    pn = load_network(network)
     records: list[dict[str, Any]] = []
     previous: list[Measurement] | None = None
     sink = open(jsonl_path, "w", encoding="utf-8") if jsonl_path else None
@@ -130,7 +130,7 @@ def run_batch(
                 tick_index=i,
                 previous=previous,
                 settings=settings,
-                net=net,
+                pnetwork=pn,
             )
             records.append(rec)
             line = json.dumps(rec, sort_keys=True)

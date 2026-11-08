@@ -1,8 +1,8 @@
 """Sample validators: missing, range, rate-of-change, topology."""
 
 from dataclasses import dataclass
-from typing import Any
 
+from gridpulse.network import PNetwork
 from gridpulse.quality.reasons import ReasonCode
 from gridpulse.telemetry import Measurement, QualityFlag
 
@@ -49,7 +49,7 @@ def validate_sample(
     sample: list[Measurement],
     *,
     previous: list[Measurement] | None = None,
-    net: Any | None = None,
+    network: PNetwork | None = None,
 ) -> list[ValidationFailure]:
     """Return all validation failures (empty means OK)."""
     failures: list[ValidationFailure] = []
@@ -94,11 +94,11 @@ def validate_sample(
                     )
                     continue
 
-        if net is not None:
+        if network is not None:
             bus_idx = _bus_index(m.signal_id)
             if bus_idx is not None:
                 # pandapower case14 uses 0-based bus index; signals use 1-based labels
-                max_bus = len(net.bus)
+                max_bus = network.bus_count
                 if bus_idx < 1 or bus_idx > max_bus:
                     failures.append(
                         ValidationFailure(
