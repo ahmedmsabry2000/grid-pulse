@@ -22,36 +22,37 @@ def _sample_for_case14() -> list[Measurement]:
 
 
 def test_nominal_converges() -> None:
-    net = load_network("case14")
+    pn = load_network("case14")
     sample = _sample_for_case14()
-    gate = PowerflowGate().decide(sample, net=net)
+    gate = PowerflowGate().decide(sample, network=pn)
     assert gate.action is GateDecision.RUN
-    result = run_powerflow(net, sample, gate=gate)
+    result = run_powerflow(pn, sample, gate=gate)
     assert isinstance(result, PowerflowResult)
     assert result.converged is True
+    assert result.network is not None
 
 
 def test_requires_gate_run() -> None:
-    net = load_network("case14")
+    pn = load_network("case14")
     sample = [
         Measurement(TS, "bus_1_vm_pu", None, QualityFlag.MISSING),
     ]
-    gate = PowerflowGate().decide(sample, net=net)
+    gate = PowerflowGate().decide(sample, network=pn)
     assert gate.action is GateDecision.SKIP
     with pytest.raises(PowerflowError, match="gate"):
-        run_powerflow(net, sample, gate=gate)
+        run_powerflow(pn, sample, gate=gate)
 
 
 def test_stressed_fails_cleanly() -> None:
-    net = load_network("case14")
+    pn = load_network("case14")
     # Extreme loads to force non-convergence (within quality ranges)
     sample = [
         Measurement(TS, f"load_{i}_p_mw", 400.0, QualityFlag.GOOD)
-        for i in range(min(5, len(net.load)))
+        for i in range(min(5, pn.load_count))
     ]
     # Bypass gate intentionally with a synthetic Run to stress PF itself
     from gridpulse.quality import Run
 
-    result = run_powerflow(net, sample, gate=Run())
+    result = run_powerflow(pn, sample, gate=Run())
     assert result.converged is False
     assert result.error is not None

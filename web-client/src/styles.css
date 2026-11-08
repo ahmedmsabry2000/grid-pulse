@@ -77,6 +77,35 @@ body,
   font-size: 0.85rem;
 }
 
+.legend {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.lg::before {
+  content: "";
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.25rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.lg-meas::before {
+  background: #e27830;
+}
+
+.lg-pf::before {
+  background: #2ea0a0;
+}
+
+.lg-rate::before {
+  background: #c44848;
+}
+
 .main {
   display: grid;
   grid-template-columns: 1fr min(360px, 38vw);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PowerflowResult,
   Topology,
@@ -8,6 +8,7 @@ import {
   wsTelemetryUrl,
 } from "./api";
 import NetworkMap from "./NetworkMap";
+import { AnomalyEvent, OverlayHit, anomaliesToOverlayHits } from "./overlays";
 
 type TickSummary = {
   tick_index?: number;
@@ -23,6 +24,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [wsState, setWsState] = useState("connecting");
   const [ticks, setTicks] = useState<TickSummary[]>([]);
+  const [liveAnomalies, setLiveAnomalies] = useState<AnomalyEvent[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,14 +72,19 @@ export default function App() {
       try {
         const msg = JSON.parse(String(ev.data)) as {
           type: string;
-          event?: { tick_index?: number; anomalies?: unknown[] };
+          event?: {
+            tick_index?: number;
+            anomalies?: AnomalyEvent[];
+          };
         };
         if (msg.type === "telemetry" && msg.event) {
+          const anomalies = Array.isArray(msg.event.anomalies)
+            ? msg.event.anomalies
+            : [];
+          setLiveAnomalies(anomalies);
           const summary: TickSummary = {
             tick_index: msg.event.tick_index,
-            anomaly_count: Array.isArray(msg.event.anomalies)
-              ? msg.event.anomalies.length
-              : 0,
+            anomaly_count: anomalies.length,
           };
           setTicks((prev) => [...prev.slice(-49), summary]);
         }
@@ -87,6 +94,17 @@ export default function App() {
     };
     return () => ws.close();
   }, []);
+
+  const overlays: OverlayHit[] = useMemo(() => {
+    const fromWs = anomaliesToOverlayHits(liveAnomalies);
+    if (!pf) return fromWs;
+    const fromPf = anomaliesToOverlayHits([
+      ...pf.rating_exceedances,
+      ...pf.ensemble_anomalies,
+      ...pf.other_anomalies,
+    ] as AnomalyEvent[]);
+    return [...fromWs, ...fromPf];
+  }, [liveAnomalies, pf]);
 
   async function onRunPowerflow() {
     setBusy(true);
@@ -120,11 +138,18 @@ export default function App() {
         <button type="button" disabled={busy} onClick={onRunPowerflow}>
           {busy ? "Running…" : "Run powerflow"}
         </button>
-        <div className="status">WS: {wsState}</div>
+        <div className="legend" aria-label="overlay legend">
+          <span className="lg lg-meas">meas</span>
+          <span className="lg lg-pf">pf</span>
+          <span className="lg lg-rate">rating</span>
+        </div>
+        <div className="status">
+          WS: {wsState} · overlays {overlays.length}
+        </div>
       </header>
       <div className="main">
         <div className="map-pane">
-          <NetworkMap topology={topology} />
+          <NetworkMap topology={topology} overlays={overlays} />
         </div>
         <aside className="panel">
           <h2>Panels</h2>
@@ -140,7 +165,18 @@ export default function App() {
           </ul>
           <h3>Gate / powerflow</h3>
           {pf ? (
-            <pre>{JSON.stringify({ gate: pf.gate, powerflow: pf.powerflow, ok: pf.ok, error: pf.error }, null, 2)}</pre>
+            <pre>
+              {JSON.stringify(
+                {
+                  gate: pf.gate,
+                  powerflow: pf.powerflow,
+                  ok: pf.ok,
+                  error: pf.error,
+                },
+                null,
+                2,
+              )}
+            </pre>
           ) : (
             <p className="status">Run powerflow to populate.</p>
           )}

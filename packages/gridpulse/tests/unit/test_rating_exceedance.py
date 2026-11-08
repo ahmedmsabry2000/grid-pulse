@@ -2,12 +2,11 @@
 
 from datetime import datetime, timezone
 
-import pandapower as pp
 import pytest
 
 from gridpulse.anomaly import AnomalyType, detect_rating_exceedances
 from gridpulse.anomaly.types import AnomalyEvent
-from gridpulse.network import load_network
+from gridpulse.network import PNetwork, load_network
 from gridpulse.pipeline import run_tick
 from gridpulse.powerflow import run_powerflow
 from gridpulse.quality import GateDecision, PowerflowGate
@@ -17,19 +16,19 @@ from gridpulse.telemetry import HistoricalStore, Measurement, QualityFlag, Synth
 TS = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def _converged_net_with_tight_line_limit() -> object:
-    net = load_network("case14")
+def _converged_network_with_tight_line_limit() -> PNetwork:
+    pn = load_network("case14")
     sample = [
         Measurement(TS, "bus_1_vm_pu", 1.06, QualityFlag.GOOD),
         Measurement(TS, "bus_2_vm_pu", 1.045, QualityFlag.GOOD),
     ]
-    gate = PowerflowGate().decide(sample, previous=None, net=net)
+    gate = PowerflowGate().decide(sample, previous=None, network=pn)
     assert gate.action is GateDecision.RUN
-    result = run_powerflow(net, sample, gate=gate)
-    assert result.converged and result.net is not None
+    result = run_powerflow(pn, sample, gate=gate)
+    assert result.converged and result.network is not None
     # Force every line over its loading limit without changing physics result.
-    result.net.line["max_loading_percent"] = 0.01
-    return result.net
+    result.network.set_column("line", "max_loading_percent", 0.01)
+    return result.network
 
 
 def test_rating_exceedance_type_exists() -> None:
@@ -38,8 +37,8 @@ def test_rating_exceedance_type_exists() -> None:
 
 
 def test_over_limit_fires_with_payload() -> None:
-    net = _converged_net_with_tight_line_limit()
-    events = detect_rating_exceedances(net, timestamp=TS)
+    pn = _converged_network_with_tight_line_limit()
+    events = detect_rating_exceedances(pn, timestamp=TS)
     assert events
     assert all(e.type is AnomalyType.RATING_EXCEEDANCE for e in events)
     e = events[0]
@@ -52,9 +51,9 @@ def test_over_limit_fires_with_payload() -> None:
 
 
 def test_under_limit_clean() -> None:
-    net = load_network("case14")
-    pp.runpp(net)
-    events = detect_rating_exceedances(net, timestamp=TS)
+    pn = load_network("case14")
+    assert pn.run_powerflow() is True
+    events = detect_rating_exceedances(pn, timestamp=TS)
     assert events == []
 
 
@@ -75,10 +74,10 @@ def test_non_converged_pf_does_not_invent_ratings(monkeypatch: pytest.MonkeyPatc
     hist = SyntheticTelemetryGenerator(signals=signals, seed=0, noise_std=0.002).generate_ticks(n=20)
     sample = hist[-1]
 
-    def _no_converge(net, sample, *, gate):
+    def _no_converge(network, sample, *, gate):
         from gridpulse.powerflow.runner import PowerflowResult
 
-        return PowerflowResult(converged=False, net=None, error="forced")
+        return PowerflowResult(converged=False, network=None, error="forced")
 
     monkeypatch.setattr("gridpulse.pipeline.runner.run_powerflow", _no_converge)
     rec = run_tick(sample, history_ticks=hist[:-1], network="case14", tick_index=0)
@@ -94,10 +93,10 @@ def test_pipeline_emits_rating_in_jsonl_shape(monkeypatch: pytest.MonkeyPatch) -
 
     real_run = run_powerflow
 
-    def _tight_limits(net, sample, *, gate):
-        result = real_run(net, sample, gate=gate)
-        if result.converged and result.net is not None:
-            result.net.line["max_loading_percent"] = 0.01
+    def _tight_limits(network, sample, *, gate):
+        result = real_run(network, sample, gate=gate)
+        if result.converged and result.network is not None:
+            result.network.set_column("line", "max_loading_percent", 0.01)
         return result
 
     monkeypatch.setattr("gridpulse.pipeline.runner.run_powerflow", _tight_limits)
@@ -111,8 +110,8 @@ def test_pipeline_emits_rating_in_jsonl_shape(monkeypatch: pytest.MonkeyPatch) -
 
 def test_orthogonality_rating_independent_of_history() -> None:
     """Over-limit still emits rating even when history would call the reading normal."""
-    net = _converged_net_with_tight_line_limit()
-    rating_events = detect_rating_exceedances(net, timestamp=TS)
+    pn = _converged_network_with_tight_line_limit()
+    rating_events = detect_rating_exceedances(pn, timestamp=TS)
     assert rating_events
 
     # Flat history at the same measurement value → no historical spike/zscore.

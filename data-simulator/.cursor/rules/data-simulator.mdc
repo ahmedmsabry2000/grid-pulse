@@ -1,0 +1,11 @@
+---
+description: data-simulator — continuous events.jsonl writer process
+alwaysApply: true
+---
+
+# data-simulator
+
+- Separate OS process that appends Stage 6 JSONL ticks via `gridpulse` core.
+- Own venv; editable dep on `../packages/gridpulse`. Do not embed the API or UI here.
+- Shared coupling is only the events file path (`events.jsonl` / `GRIDPULSE_EVENTS_PATH`).
+- Prefer running from repo root so the path matches web-server.

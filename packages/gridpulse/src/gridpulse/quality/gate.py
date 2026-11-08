@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
+from gridpulse.network import PNetwork
 from gridpulse.quality.reasons import ReasonCode
 from gridpulse.quality.validators import validate_sample
 from gridpulse.telemetry import Measurement
@@ -35,9 +35,9 @@ class PowerflowGate:
         sample: list[Measurement],
         *,
         previous: list[Measurement] | None = None,
-        net: Any | None = None,
+        network: PNetwork | None = None,
     ) -> Run | Skip:
-        failures = validate_sample(sample, previous=previous, net=net)
+        failures = validate_sample(sample, previous=previous, network=network)
         if not failures:
             return Run()
         first = failures[0]

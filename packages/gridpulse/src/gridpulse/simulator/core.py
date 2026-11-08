@@ -113,7 +113,7 @@ class LiveSimulator:
         path.parent.mkdir(parents=True, exist_ok=True)
         sleep = time.sleep if sleep_fn is None else sleep_fn
         store = self._warmup_history()
-        net = load_network(self.network)
+        pn = load_network(self.network)
         previous: list[Measurement] | None = None
         written = 0
         with path.open("a", encoding="utf-8") as sink:
@@ -126,7 +126,7 @@ class LiveSimulator:
                     tick_index=written,
                     previous=previous,
                     settings=self.settings,
-                    net=net,
+                    pnetwork=pn,
                 )
                 sink.write(json.dumps(rec, sort_keys=True) + "\n")
                 sink.flush()

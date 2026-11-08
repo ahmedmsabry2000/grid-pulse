@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from gridpulse.anomaly.types import AnomalyEvent, AnomalyType
+from gridpulse.network import PNetwork
 
 
 def _maybe_float(value: Any) -> float | None:
@@ -45,14 +46,15 @@ def _check_element(
     )
 
 
-def detect_rating_exceedances(net: Any, *, timestamp: datetime) -> list[AnomalyEvent]:
+def detect_rating_exceedances(network: PNetwork, *, timestamp: datetime) -> list[AnomalyEvent]:
     """Flag lines/trafos whose PF results exceed ratings.
 
-    Requires a converged net with ``res_*`` tables. Compares
+    Requires a converged ``PNetwork`` with ``res_*`` tables. Compares
     ``loading_percent`` to ``max_loading_percent`` and, for lines,
     ``i_ka`` to ``max_i_ka`` when those columns exist.
     """
     events: list[AnomalyEvent] = []
+    net = network.pp_net
 
     if hasattr(net, "line") and hasattr(net, "res_line") and len(net.res_line):
         for idx in net.res_line.index:

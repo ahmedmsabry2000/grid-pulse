@@ -1,0 +1,10 @@
+---
+description: streamlit-app — Plotly time-series UI over Stage 6 events
+alwaysApply: true
+---
+
+# streamlit-app
+
+- First-class surface; not replaced by deck.gl. Own venv; depends on `../packages/gridpulse`.
+- Reads JSONL/events only — no second pipeline; reuse `gridpulse.ui` helpers.
+- Preserve snapshot Prev/Next pages and multi-series charts unless a Spec says otherwise.

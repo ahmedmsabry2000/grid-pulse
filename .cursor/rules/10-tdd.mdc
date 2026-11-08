@@ -1,12 +1,11 @@
 ---
-description: Red-green-refactor; failing test first; pytest exit gate
+description: Red-green-refactor; failing test first; pytest / vitest exit gate
 alwaysApply: true
 ---
 
 # TDD
 
 - No production code without a failing test first (red → green → refactor).
-- Prefer pytest; stage exit requires green tests.
-- Mirror source under `tests/unit/` and `tests/integration/`.
-- Assert behavior and invariants; avoid trivial existence-only tests beyond Stage 0 smoke.
-- When a stage fails, fix with TDD before advancing.
+- Prefer pytest for Python; vitest for `web-client`.
+- Mirror source under `tests/unit/` and `tests/integration/` (or colocated `*.test.ts`).
+- Assert behavior and invariants; avoid trivial existence-only tests beyond smoke.

@@ -10,4 +10,3 @@ alwaysApply: true
 - Prefer scripts over hand-rolled `gh` / GraphQL when a script exists.
 - Bootstrap once with `scripts/github/bootstrap-project.sh` (labels + Project fields).
 - Do not use GitHub MCP for this workflow; local `gh` + git only.
-- Push is allowed for this repo once Spec/Issue work is on the board (see `40-commits`).

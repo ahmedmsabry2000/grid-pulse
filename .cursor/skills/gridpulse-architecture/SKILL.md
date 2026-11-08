@@ -9,7 +9,7 @@ description: Module map, allowed imports, and domain-types-first guidance for Gr
 
 | Package | Owns |
 |---------|------|
-| `network` | Pluggable loader + synthetic layout; pandapower net isolation |
+| `network` | `PNetwork` (pandapower + NetworkX) + pluggable loader + synthetic layout |
 | `telemetry` | Measurement schemas, history, synthetic ticks |
 | `quality` | Validators; `PowerflowGate` Run\|Skip |
 | `powerflow` | Apply sample + PF run + converged result |
@@ -24,6 +24,7 @@ Top-level minirepos (own venvs): `packages/gridpulse`, `data-simulator`, `stream
 ## Allowed imports
 
 - Only `network` and `powerflow` import pandapower.
+- Public APIs take/return `PNetwork`; mutate pandapower state only via `PNetwork` methods.
 - `pipeline` may depend on all domain packages; `ui` reads events/JSONL only.
 - Prefer domain dataclasses/enums over raw DataFrames at package boundaries.
 

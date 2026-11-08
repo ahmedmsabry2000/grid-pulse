@@ -100,11 +100,9 @@ def test_orthogonality_in_limit_but_historically_weird() -> None:
     ensemble = detect_ensemble_anomalies(sample, store, config=EnsembleConfig(threshold=0.3, random_state=0))
     assert ensemble
 
-    net = load_network("case14")
-    import pandapower as pp
-
-    pp.runpp(net)
-    ratings = detect_rating_exceedances(net, timestamp=TS)
+    pn = load_network("case14")
+    assert pn.run_powerflow() is True
+    ratings = detect_rating_exceedances(pn, timestamp=TS)
     assert ratings == []
 
 
@@ -117,10 +115,10 @@ def test_orthogonality_over_limit_historically_normal(monkeypatch: pytest.Monkey
 
     real_run = run_powerflow
 
-    def _tight(net, sample, *, gate):
-        result = real_run(net, sample, gate=gate)
-        if result.converged and result.net is not None:
-            result.net.line["max_loading_percent"] = 0.01
+    def _tight(network, sample, *, gate):
+        result = real_run(network, sample, gate=gate)
+        if result.converged and result.network is not None:
+            result.network.set_column("line", "max_loading_percent", 0.01)
         return result
 
     monkeypatch.setattr("gridpulse.pipeline.runner.run_powerflow", _tight)
@@ -138,10 +136,10 @@ def test_orthogonality_both_can_fire(monkeypatch: pytest.MonkeyPatch) -> None:
 
     real_run = run_powerflow
 
-    def _tight(net, sample, *, gate):
-        result = real_run(net, sample, gate=gate)
-        if result.converged and result.net is not None:
-            result.net.line["max_loading_percent"] = 0.01
+    def _tight(network, sample, *, gate):
+        result = real_run(network, sample, gate=gate)
+        if result.converged and result.network is not None:
+            result.network.set_column("line", "max_loading_percent", 0.01)
         return result
 
     monkeypatch.setattr("gridpulse.pipeline.runner.run_powerflow", _tight)

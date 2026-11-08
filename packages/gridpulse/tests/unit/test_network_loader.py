@@ -1,10 +1,9 @@
-"""Stage 1: pluggable network loader."""
-
-import copy
+"""Stage 1: pluggable network loader → PNetwork."""
 
 import pytest
 
 from gridpulse.network import (
+    PNetwork,
     UnknownNetworkError,
     list_networks,
     load_network,
@@ -21,22 +20,23 @@ def test_list_networks_includes_defaults() -> None:
 
 
 def test_load_case14_default() -> None:
-    net = load_network()
-    assert len(net.bus) == 14
-    assert len(net.line) > 0
+    pn = load_network()
+    assert isinstance(pn, PNetwork)
+    assert pn.bus_count == 14
+    assert pn.line_count > 0
 
 
 def test_load_case14_by_name() -> None:
-    net = load_network("case14")
-    assert len(net.bus) == 14
+    pn = load_network("case14")
+    assert pn.bus_count == 14
 
 
 def test_isolation_via_copy() -> None:
     a = load_network("case14")
     b = load_network("case14")
-    original_vm = float(a.bus.loc[0, "vn_kv"])
-    a.bus.loc[0, "vn_kv"] = original_vm + 99.0
-    assert float(b.bus.loc[0, "vn_kv"]) == original_vm
+    original_vm = a.bus_vn_kv(0)
+    a.set_bus_vn_kv(0, original_vm + 99.0)
+    assert b.bus_vn_kv(0) == original_vm
 
 
 def test_unknown_id_raises() -> None:
@@ -46,7 +46,6 @@ def test_unknown_id_raises() -> None:
 
 def test_registered_stub_network_loads() -> None:
     def _stub():
-        # Minimal pandapower-like object with bus attribute for shape checks
         import pandapower as pp
 
         net = pp.create_empty_network()
@@ -56,12 +55,11 @@ def test_registered_stub_network_loads() -> None:
 
     register_network("stub2", _stub)
     try:
-        net = load_network("stub2")
-        assert len(net.bus) == 2
-        # Isolation still holds for registered nets
+        pn = load_network("stub2")
+        assert pn.bus_count == 2
         other = load_network("stub2")
-        net.bus.loc[0, "vn_kv"] = 999.0
-        assert float(other.bus.loc[0, "vn_kv"]) == 110.0
+        pn.set_bus_vn_kv(0, 999.0)
+        assert other.bus_vn_kv(0) == 110.0
     finally:
         from gridpulse.network.loader import _REGISTRY
 
