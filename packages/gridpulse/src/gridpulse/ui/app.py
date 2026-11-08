@@ -10,6 +10,11 @@ from gridpulse.ui.events import available_signals, load_events
 from gridpulse.ui.plots import build_multiseries_figure
 from gridpulse.ui.powerflow_panel import run_powerflow_on_latest
 from gridpulse.ui.snapshots import append_snapshot, freeze_snapshot
+from gridpulse.ui.tables import (
+    flatten_anomaly_rows,
+    flatten_ensemble_rows,
+    flatten_rating_rows,
+)
 
 # Latest N ticks shown on the live chart
 _TAIL_N = 200
@@ -34,45 +39,20 @@ def _render_pf_panels(result: dict[str, Any]) -> None:
         st.success("Powerflow converged.")
 
     st.markdown("#### Rating exceedances")
-    ratings = result.get("rating_exceedances") or []
+    ratings = flatten_rating_rows(result.get("rating_exceedances") or [])
     if ratings:
-        st.dataframe(
-            [
-                {
-                    "object": a.get("signal_id"),
-                    "quantity": a.get("quantity"),
-                    "value": a.get("value"),
-                    "limit": a.get("limit"),
-                    "margin": a.get("margin"),
-                }
-                for a in ratings
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(ratings, use_container_width=True, hide_index=True)
     else:
         st.caption("None")
 
     st.markdown("#### Ensemble anomalies")
-    ens = result.get("ensemble_anomalies") or []
+    ens = flatten_ensemble_rows(result.get("ensemble_anomalies") or [])
     if ens:
-        st.dataframe(
-            [
-                {
-                    "signal": a.get("signal_id"),
-                    "score": a.get("score"),
-                    "detail": a.get("detail"),
-                    "members": a.get("member_scores"),
-                }
-                for a in ens
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(ens, use_container_width=True, hide_index=True)
     else:
         st.caption("None")
 
-    other = result.get("other_anomalies") or []
+    other = flatten_anomaly_rows(result.get("other_anomalies") or [])
     if other:
         st.markdown("#### Other anomalies")
         st.dataframe(other, use_container_width=True, hide_index=True)

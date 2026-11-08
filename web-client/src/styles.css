@@ -148,14 +148,49 @@ body,
   font-weight: 560;
 }
 
-.panel pre {
+.summary-line {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.pf-summary {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.op-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.78rem;
-  background: #121820;
-  padding: 0.6rem;
-  border-radius: 4px;
+}
+
+.op-table th,
+.op-table td {
+  text-align: left;
+  padding: 0.28rem 0.35rem;
+  border-bottom: 1px solid #243040;
+  vertical-align: top;
+}
+
+.op-table th {
+  color: var(--muted);
+  font-weight: 560;
+}
+
+.lg-other::before {
+  background: #8b9aab;
+}
+
+.toolbar button.sim-toggle {
+  background: #243040;
+  border-color: #3a4a5c;
+}
+
+.toolbar button.sim-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: #2f7a54;
 }
 
 .tick-list {

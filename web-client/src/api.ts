@@ -67,6 +67,51 @@ export async function fetchEvents(limit = 500): Promise<unknown[]> {
   return Array.isArray(body.events) ? body.events : [];
 }
 
+export type SimulatorStatus = {
+  status: "running" | "stopped";
+  pid: number | null;
+};
+
+async function readPlainError(r: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await r.json()) as { detail?: unknown };
+    if (typeof body.detail === "string" && body.detail.trim()) return body.detail;
+  } catch {
+    /* plain text only */
+  }
+  return `${fallback}: ${r.status}`;
+}
+
+export async function fetchSimulatorStatus(): Promise<SimulatorStatus> {
+  const r = await fetch(`${API_BASE}/simulator`);
+  if (!r.ok) throw new Error(await readPlainError(r, "simulator status"));
+  const body = (await r.json()) as SimulatorStatus;
+  return {
+    status: body.status === "running" ? "running" : "stopped",
+    pid: typeof body.pid === "number" ? body.pid : null,
+  };
+}
+
+export async function postSimulatorStart(): Promise<SimulatorStatus> {
+  const r = await fetch(`${API_BASE}/simulator/start`, { method: "POST" });
+  if (!r.ok) throw new Error(await readPlainError(r, "simulator start"));
+  const body = (await r.json()) as SimulatorStatus;
+  return {
+    status: body.status === "running" ? "running" : "stopped",
+    pid: typeof body.pid === "number" ? body.pid : null,
+  };
+}
+
+export async function postSimulatorStop(): Promise<SimulatorStatus> {
+  const r = await fetch(`${API_BASE}/simulator/stop`, { method: "POST" });
+  if (!r.ok) throw new Error(await readPlainError(r, "simulator stop"));
+  const body = (await r.json()) as SimulatorStatus;
+  return {
+    status: body.status === "running" ? "running" : "stopped",
+    pid: typeof body.pid === "number" ? body.pid : null,
+  };
+}
+
 /** Fit OrthographicView to GeoJSON point extents with padding. */
 export function boundsFromTopology(topo: Topology): [number, number, number, number] {
   let minX = Infinity;

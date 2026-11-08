@@ -128,4 +128,4 @@ Domain type: `PNetwork` in `packages/gridpulse` (pandapower + NetworkX). No raw 
 
 ## Deferred (do not build without plan revision)
 
-Remote/SCADA, gate severity tiers, PF residual productization, strict mypy, in-app simulator start/stop, real GIS / Mapbox requirement.
+Remote/SCADA, gate severity tiers, PF residual productization, strict mypy, real GIS / Mapbox requirement.
