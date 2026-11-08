@@ -1,7 +1,7 @@
 import { OrthographicView } from "@deck.gl/core";
 import { GeoJsonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import DeckGL from "@deck.gl/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Topology, boundsFromTopology } from "./api";
 import { OverlayHit, OverlayKind, viewStateFromBounds } from "./overlays";
 
@@ -32,16 +32,36 @@ function pickKind(
 }
 
 export default function NetworkMap({ topology, overlays = [] }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) {
+        setViewport({ width, height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const bounds = useMemo(
     () => (topology ? boundsFromTopology(topology) : ([-1, -1, 1, 1] as const)),
     [topology],
   );
 
-  const [viewState, setViewState] = useState(() => viewStateFromBounds(bounds));
+  const [viewState, setViewState] = useState(() =>
+    viewStateFromBounds(bounds, viewport),
+  );
 
   useEffect(() => {
-    setViewState(viewStateFromBounds(bounds));
-  }, [bounds, topology?.network_id]);
+    setViewState(viewStateFromBounds(bounds, viewport));
+  }, [bounds, viewport, topology?.network_id]);
 
   const busKinds = useMemo(() => {
     const map = new Map<number, OverlayKind[]>();
@@ -140,34 +160,36 @@ export default function NetworkMap({ topology, overlays = [] }: Props) {
   }, [topology, busKinds, lineKinds]);
 
   return (
-    <DeckGL
-      views={new OrthographicView({ id: "ortho", flipY: false })}
-      viewState={viewState}
-      onViewStateChange={({ viewState: next }) =>
-        setViewState(next as typeof viewState)
-      }
-      controller={true}
-      layers={layers}
-      getTooltip={({ object }) => {
-        if (!object) return null;
-        const props = object.properties ?? object;
-        if (props?.bus_id != null) {
-          const kinds = busKinds.get(Number(props.bus_id)) ?? [];
-          const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
-          return `bus ${props.bus_id}${suffix}`;
+    <div ref={containerRef} className="network-map">
+      <DeckGL
+        views={new OrthographicView({ id: "ortho", flipY: false })}
+        viewState={viewState}
+        onViewStateChange={({ viewState: next }) =>
+          setViewState(next as typeof viewState)
         }
-        if (props?.line_id != null) {
-          const kinds = lineKinds.get(`line:${props.line_id}`) ?? [];
-          const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
-          return `line ${props.line_id}${suffix}`;
-        }
-        if (props?.trafo_id != null) {
-          const kinds = lineKinds.get(`trafo:${props.trafo_id}`) ?? [];
-          const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
-          return `trafo ${props.trafo_id}${suffix}`;
-        }
-        return null;
-      }}
-    />
+        controller={true}
+        layers={layers}
+        getTooltip={({ object }) => {
+          if (!object) return null;
+          const props = object.properties ?? object;
+          if (props?.bus_id != null) {
+            const kinds = busKinds.get(Number(props.bus_id)) ?? [];
+            const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
+            return `bus ${props.bus_id}${suffix}`;
+          }
+          if (props?.line_id != null) {
+            const kinds = lineKinds.get(`line:${props.line_id}`) ?? [];
+            const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
+            return `line ${props.line_id}${suffix}`;
+          }
+          if (props?.trafo_id != null) {
+            const kinds = lineKinds.get(`trafo:${props.trafo_id}`) ?? [];
+            const suffix = kinds.length ? ` · ${kinds.join(",")}` : "";
+            return `trafo ${props.trafo_id}${suffix}`;
+          }
+          return null;
+        }}
+      />
+    </div>
   );
 }

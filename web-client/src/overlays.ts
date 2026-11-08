@@ -82,20 +82,38 @@ export type OrthoViewState = {
   maxZoom: number;
 };
 
-/** OrthographicView target/zoom that fits [minX,minY,maxX,maxY]. */
+export type ViewportSize = {
+  width: number;
+  height: number;
+};
+
+/**
+ * OrthographicView target/zoom that fits [minX,minY,maxX,maxY] into a viewport.
+ *
+ * deck.gl OrthographicView: zoom 0 maps 1 world unit → 1 pixel. Fitting must use
+ * the viewport size in pixels; a unitless "span target" collapses the graph to a
+ * couple of pixels and looks like a blank map.
+ */
 export function viewStateFromBounds(
   bounds: readonly [number, number, number, number],
-  spanTarget = 1.6,
+  viewport: ViewportSize = { width: 800, height: 600 },
+  fill = 0.85,
 ): OrthoViewState {
   const [minX, minY, maxX, maxY] = bounds;
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
-  const span = Math.max(maxX - minX, maxY - minY, 0.2);
-  const zoom = Math.log2(spanTarget / span);
+  const spanX = Math.max(maxX - minX, 1e-6);
+  const spanY = Math.max(maxY - minY, 1e-6);
+  const width = Math.max(viewport.width, 1);
+  const height = Math.max(viewport.height, 1);
+  const zoom = Math.min(
+    Math.log2((width * fill) / spanX),
+    Math.log2((height * fill) / spanY),
+  );
   return {
     target: [cx, cy, 0],
     zoom,
     minZoom: -4,
-    maxZoom: 8,
+    maxZoom: 16,
   };
 }
