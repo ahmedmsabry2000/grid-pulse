@@ -2,16 +2,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Prefer wheels; avoid build-essential unless a dep needs compiling.
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY packages/gridpulse /app/packages/gridpulse
 COPY data-simulator /app/data-simulator
 
 # pip does not honor uv.sources; install core first, then minirepo without deps.
 RUN pip install --no-cache-dir /app/packages/gridpulse \
-    && pip install --no-cache-dir --no-deps /app/data-simulator
+    && pip install --no-cache-dir --no-deps /app/data-simulator \
+    && find /usr/local/lib -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 ENV GRIDPULSE_EVENTS_PATH=/data/events.jsonl
 VOLUME ["/data"]

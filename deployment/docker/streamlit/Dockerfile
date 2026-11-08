@@ -2,15 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY packages/gridpulse /app/packages/gridpulse
 COPY streamlit-app /app/streamlit-app
 
 RUN pip install --no-cache-dir "/app/packages/gridpulse[ui]" \
-    && pip install --no-cache-dir --no-deps /app/streamlit-app
+    && pip install --no-cache-dir --no-deps /app/streamlit-app \
+    && find /usr/local/lib -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 ENV GRIDPULSE_EVENTS_PATH=/data/events.jsonl
 EXPOSE 8501
