@@ -24,4 +24,5 @@ type: fix
 - Stacks with #18 deployment work; keep PR coherent with #18/#20
 - Earlier failures: broken docker.io auth key, 9GiB VM disk exhaustion, missing machine SSH identity/disk image
 - 2026-11-08: on 8 GiB Mac, Podman VM (2–6 GiB) builds images then macOS jetsams the VM; stack verified via `deployment/native-up.sh` / tmux (UI :5173, API :8000)
-- Deployment helpers must not rewrite host `auth.json` / `containers.conf` / `~/.docker/config.json`; Hub login stays manual if public pulls fail
+- Deployment helpers do not rewrite host auth/config; Hub login stays manual if public pulls fail
+- GP-23: dropped unused `DOCKER_CONFIG` temp auth-shadow and redundant base-image pre-pulls from `podman-up.sh`

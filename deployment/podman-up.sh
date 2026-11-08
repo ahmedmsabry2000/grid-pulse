@@ -2,8 +2,6 @@
 # Bring up Grid Pulse via Podman Compose with a healthy Podman machine.
 # Recovers common macOS failures: missing SSH identity, tiny disk,
 # gvproxy races, and CoreOS ignition emergency mode after unclean restarts.
-#
-# Does not modify host config under ~/.config/containers or ~/.docker.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -42,7 +40,6 @@ ensure_machine() {
   # Best-effort cleanup of stale temp sockets that break gvproxy bind.
   PODMAN_TMP="${TMPDIR:-/tmp}/podman"
   rm -rf "$PODMAN_TMP" 2>/dev/null || true
-  # macOS often uses a per-user folder under /var/folders/.../T/podman
   if [[ -d /var/folders ]]; then
     find /var/folders -type d -name podman -path '*/T/podman' -maxdepth 4 2>/dev/null \
       | while read -r d; do rm -rf "$d"; done || true
@@ -58,7 +55,6 @@ ensure_machine() {
     --rootful \
     --now
 
-  # Give API forwarding a moment after reported start.
   for _ in $(seq 1 30); do
     if podman_ok; then
       echo "==> Podman machine ready"
@@ -73,19 +69,7 @@ ensure_machine() {
 
 ensure_machine
 
-echo "==> Pre-pulling base images"
-podman pull docker.io/library/python:3.12-slim
-podman pull docker.io/library/node:20-bookworm-slim
-podman pull docker.io/library/nginx:1.27-alpine
-
 echo "==> Building and starting compose stack"
-# Session-local empty Docker config so compose builds ignore host credsStore quirks
-# without rewriting ~/.docker/config.json.
-DOCKER_CONFIG="$(mktemp -d)"
-export DOCKER_CONFIG
-printf '%s\n' '{}' >"${DOCKER_CONFIG}/config.json"
-trap 'rm -rf "${DOCKER_CONFIG}"' EXIT
-
 podman compose -f "$COMPOSE_FILE" up --build -d
 
 echo "==> Stack status"
