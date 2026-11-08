@@ -90,31 +90,9 @@ ensure_machine() {
 ensure_anonymous_dockerhub() {
   # Bad/empty docker.io credHelpers in auth.json cause "incorrect username/password"
   # on anonymous Hub pulls. Keep ghcr.io helpers; drop docker.io helpers.
-  local auth="${HOME}/.config/containers/auth.json"
-  mkdir -p "$(dirname "$auth")"
-  python3 - "$auth" <<'PY'
-import json, sys
-from pathlib import Path
-path = Path(sys.argv[1])
-data = json.loads(path.read_text()) if path.exists() else {}
-helpers = dict(data.get("credHelpers") or {})
-auths = dict(data.get("auths") or {})
-changed = False
-for k in list(helpers):
-    if "docker.io" in k or "index.docker.io" in k:
-        helpers.pop(k)
-        changed = True
-for k in list(auths):
-    if "docker.io" in k or "index.docker.io" in k:
-        if not auths[k]:
-            auths.pop(k)
-            changed = True
-data["credHelpers"] = helpers
-data["auths"] = auths
-if changed or not path.exists():
-    path.write_text(json.dumps(data, indent=2) + "\n")
-    print(f"updated {path} for anonymous docker.io pulls")
-PY
+  need python3
+  python3 "$ROOT/deployment/ensure_anonymous_dockerhub.py" \
+    "${HOME}/.config/containers/auth.json"
 }
 
 ensure_machine
