@@ -39,8 +39,9 @@ Recommended provider on Apple Silicon: **applehv** (set in `~/.config/containers
 4. **Stale gvproxy sockets** — `bind: address already in use` on `*-api.sock`.
 5. **CoreOS ignition emergency mode** — after unclean `killall` of `gvproxy`/`vfkit`, the next boot of the same disk can drop into emergency mode and the API never comes up. Fix: recreate the machine (`podman machine rm -f` then `init --now`), or use `./deployment/podman-up.sh`.
 6. **`npm ci` segfault on `node:20-alpine`** — observed under Podman applehv; web-client Dockerfile builds with `node:20-bookworm-slim` instead.
+7. **Docker Hub auth errors on public pulls** — if `podman pull` fails with “incorrect username/password” for public `docker.io` images, fix your own Podman/Docker credentials locally (or log out of Hub). Deployment scripts do **not** rewrite `~/.config/containers/auth.json` or `~/.docker/config.json`.
 
-Helper (recreates a healthy machine if needed, then compose up):
+Helper (recreates a healthy machine if needed, then compose up; does not mutate host auth/config):
 
 ```bash
 chmod +x deployment/podman-up.sh

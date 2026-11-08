@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Bring up Grid Pulse via Podman Compose with a healthy Podman machine.
-# Recovers common macOS failures: missing SSH identity, tiny disk, libkrun
+# Recovers common macOS failures: missing SSH identity, tiny disk,
 # gvproxy races, and CoreOS ignition emergency mode after unclean restarts.
+#
+# Does not modify host config under ~/.config/containers or ~/.docker.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,24 +24,6 @@ need podman
 if ! command -v docker-compose >/dev/null 2>&1 && ! podman compose version >/dev/null 2>&1; then
   echo "need podman compose (or docker-compose provider)" >&2
   exit 1
-fi
-
-mkdir -p "${HOME}/.config/containers"
-CONF="${HOME}/.config/containers/containers.conf"
-if [[ ! -f "$CONF" ]] || ! grep -q '\[machine\]' "$CONF" 2>/dev/null; then
-  cat >>"$CONF" <<EOF
-
-[machine]
-provider = "${PROVIDER}"
-EOF
-elif ! grep -q 'provider' "$CONF"; then
-  # shellcheck disable=SC2016
-  awk -v p="$PROVIDER" '
-    BEGIN{done=0}
-    /^\[machine\]/{print; print "provider = \"" p "\""; done=1; next}
-    {print}
-    END{if(!done) print "[machine]\nprovider = \"" p "\""}
-  ' "$CONF" >"${CONF}.tmp" && mv "${CONF}.tmp" "$CONF"
 fi
 
 podman_ok() {
@@ -87,16 +71,7 @@ ensure_machine() {
   exit 1
 }
 
-ensure_anonymous_dockerhub() {
-  # Bad/empty docker.io credHelpers in auth.json cause "incorrect username/password"
-  # on anonymous Hub pulls. Keep ghcr.io helpers; drop docker.io helpers.
-  need python3
-  python3 "$ROOT/deployment/ensure_anonymous_dockerhub.py" \
-    "${HOME}/.config/containers/auth.json"
-}
-
 ensure_machine
-ensure_anonymous_dockerhub
 
 echo "==> Pre-pulling base images"
 podman pull docker.io/library/python:3.12-slim
@@ -104,7 +79,8 @@ podman pull docker.io/library/node:20-bookworm-slim
 podman pull docker.io/library/nginx:1.27-alpine
 
 echo "==> Building and starting compose stack"
-# Isolate from host ~/.docker/config.json credsStore quirks during compose builds.
+# Session-local empty Docker config so compose builds ignore host credsStore quirks
+# without rewriting ~/.docker/config.json.
 DOCKER_CONFIG="$(mktemp -d)"
 export DOCKER_CONFIG
 printf '%s\n' '{}' >"${DOCKER_CONFIG}/config.json"
