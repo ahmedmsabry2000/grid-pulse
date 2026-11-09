@@ -8,8 +8,10 @@ import {
   markerFraction,
   mergePowerflowMarkers,
   nextAnomalyIndex,
+  nextPowerflowIndex,
   powerflowMarkersFromHistory,
   prevAnomalyIndex,
+  prevPowerflowIndex,
   tickTimeMs,
   tickTimestamp,
 } from "./history";
@@ -85,7 +87,29 @@ describe("powerflowMarkersFromHistory", () => {
   it("labels powerflow markers by time, not tick id", () => {
     const marks = powerflowMarkersFromHistory([t0, t1, t2]);
     expect(marks[0].label).toContain("2026-01-01T00:00:00Z");
+    expect(marks[0].label).toMatch(/powerflow/i);
     expect(marks[0].label).not.toMatch(/tick\s*\d/i);
+    expect(marks[1].label).toMatch(/not converged|failed/i);
+  });
+});
+
+describe("prevPowerflowIndex / nextPowerflowIndex", () => {
+  const hist = [t0, t1, t2, t3, t4];
+
+  it("jumps between samples where powerflow ran", () => {
+    // t0 ran, t1 skipped, t2 ran (failed), t3 ran, t4 skipped
+    expect(prevPowerflowIndex(hist, 4)).toBe(3);
+    expect(prevPowerflowIndex(hist, 3)).toBe(2);
+    expect(prevPowerflowIndex(hist, 2)).toBe(0);
+    expect(prevPowerflowIndex(hist, 0)).toBe(null);
+    expect(nextPowerflowIndex(hist, 0)).toBe(2);
+    expect(nextPowerflowIndex(hist, 2)).toBe(3);
+    expect(nextPowerflowIndex(hist, 3)).toBe(null);
+  });
+
+  it("returns null when no powerflow runs exist", () => {
+    expect(prevPowerflowIndex([t1, t4], 1)).toBe(null);
+    expect(nextPowerflowIndex([t1, t4], 0)).toBe(null);
   });
 });
 

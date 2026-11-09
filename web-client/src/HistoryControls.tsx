@@ -5,7 +5,9 @@ import {
   historyTimeLabel,
   markerFraction,
   nextAnomalyIndex,
+  nextPowerflowIndex,
   prevAnomalyIndex,
+  prevPowerflowIndex,
   timedMarkerFraction,
 } from "./history";
 
@@ -38,8 +40,12 @@ export default function HistoryControls({
   const selected = history[selectedIndex];
   const label = historyTimeLabel(selected, selectedIndex);
   const max = Math.max(0, history.length - 1);
-  const prevIdx = prevAnomalyIndex(history, selectedIndex);
-  const nextIdx = nextAnomalyIndex(history, selectedIndex);
+  const prevAnom = prevAnomalyIndex(history, selectedIndex);
+  const nextAnom = nextAnomalyIndex(history, selectedIndex);
+  const prevPf = prevPowerflowIndex(history, selectedIndex);
+  const nextPf = nextPowerflowIndex(history, selectedIndex);
+  const pfTickCount = markers.filter((m) => m.kind === "tick").length;
+  const pfManualCount = markers.filter((m) => m.kind === "manual").length;
 
   return (
     <div className="history-controls" data-testid="history-controls">
@@ -58,8 +64,8 @@ export default function HistoryControls({
         <button
           type="button"
           className="ghost"
-          disabled={prevIdx === null}
-          onClick={() => prevIdx !== null && onSelectIndex(prevIdx)}
+          disabled={prevAnom === null}
+          onClick={() => prevAnom !== null && onSelectIndex(prevAnom)}
           aria-label="Previous anomaly"
         >
           Prev anomaly
@@ -67,25 +73,43 @@ export default function HistoryControls({
         <button
           type="button"
           className="ghost"
-          disabled={nextIdx === null}
-          onClick={() => nextIdx !== null && onSelectIndex(nextIdx)}
+          disabled={nextAnom === null}
+          onClick={() => nextAnom !== null && onSelectIndex(nextAnom)}
           aria-label="Next anomaly"
         >
           Next anomaly
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={prevPf === null}
+          onClick={() => prevPf !== null && onSelectIndex(prevPf)}
+          aria-label="Previous powerflow"
+        >
+          Prev powerflow
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={nextPf === null}
+          onClick={() => nextPf !== null && onSelectIndex(nextPf)}
+          aria-label="Next powerflow"
+        >
+          Next powerflow
         </button>
         <button type="button" className="ghost" disabled={followLive} onClick={onFollowLive}>
           {followLive ? "Live" : "Follow live"}
         </button>
         <span className="history-label">{label}</span>
       </div>
-      <div className="pf-timeline" aria-label="Anomaly timeline">
+      <div className="pf-timeline" aria-label="History timeline">
         <div className="pf-timeline-track">
           {markers.map((m, i) => {
             const left = `${markerFraction(m, history) * 100}%`;
             const title =
               m.kind === "manual"
                 ? `${m.label} (manual powerflow)`
-                : `${m.label} · pf ran${m.converged === false ? " (not converged)" : m.converged ? " (ok)" : ""}`;
+                : m.label;
             return (
               <button
                 key={`pf-${m.kind}-${m.index}-${m.atMs}-${i}`}
@@ -126,12 +150,8 @@ export default function HistoryControls({
         </div>
         <div className="pf-timeline-caption">
           Anomalies · {anomalyMarkers.length}
-          {markers.length
-            ? ` · powerflow runs ${markers.filter((m) => m.kind === "tick").length}`
-            : ""}
-          {markers.some((m) => m.kind === "manual")
-            ? ` · ${markers.filter((m) => m.kind === "manual").length} manual`
-            : ""}
+          {pfTickCount ? ` · powerflow · ${pfTickCount}` : ""}
+          {pfManualCount ? ` · manual · ${pfManualCount}` : ""}
         </div>
       </div>
     </div>

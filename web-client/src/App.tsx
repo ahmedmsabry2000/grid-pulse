@@ -263,6 +263,7 @@ export default function App() {
           <span className="lg lg-ensemble">ensemble</span>
           <span className="lg lg-pf">pf</span>
           <span className="lg lg-rate">rating</span>
+          <span className="lg lg-pfrun">pf run</span>
         </div>
         <div className="status">
           WS: {wsState} · sim {simStatus} · hist {history.length} · overlays{" "}

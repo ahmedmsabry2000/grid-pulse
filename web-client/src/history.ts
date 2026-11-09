@@ -144,6 +144,30 @@ export function nextAnomalyIndex(
   return null;
 }
 
+function powerflowRan(event: TickEvent): boolean {
+  return event.powerflow?.ran === true;
+}
+
+export function prevPowerflowIndex(
+  history: TickEvent[],
+  selectedIndex: number,
+): number | null {
+  for (let i = selectedIndex - 1; i >= 0; i -= 1) {
+    if (powerflowRan(history[i]!)) return i;
+  }
+  return null;
+}
+
+export function nextPowerflowIndex(
+  history: TickEvent[],
+  selectedIndex: number,
+): number | null {
+  for (let i = selectedIndex + 1; i < history.length; i += 1) {
+    if (powerflowRan(history[i]!)) return i;
+  }
+  return null;
+}
+
 /** Append a tick, de-dupe by tick_index when present, cap length. */
 export function appendTick(history: TickEvent[], event: TickEvent): TickEvent[] {
   const next = [...history];
@@ -171,16 +195,22 @@ export function isFollowLive(selectedIndex: number, length: number): boolean {
 export function powerflowMarkersFromHistory(history: TickEvent[]): PowerflowMarker[] {
   const out: PowerflowMarker[] = [];
   history.forEach((ev, index) => {
-    if (ev.powerflow?.ran !== true) return;
+    if (!powerflowRan(ev)) return;
     const atMs = tickTimeMs(ev) ?? index;
     const time = tickTimestamp(ev) ?? "unknown time";
+    const status =
+      ev.powerflow?.converged === true
+        ? "ok"
+        : ev.powerflow?.converged === false
+          ? "not converged"
+          : "ran";
     out.push({
       kind: "tick",
       index,
       atMs,
-      label: time,
+      label: `${time} · powerflow ${status}`,
       ran: true,
-      converged: ev.powerflow.converged ?? null,
+      converged: ev.powerflow?.converged ?? null,
     });
   });
   return out;
