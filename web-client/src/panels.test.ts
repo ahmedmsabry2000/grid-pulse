@@ -20,7 +20,7 @@ describe("formatTickSummary", () => {
       measurements: [{ timestamp: "2026-01-01T12:00:00Z", signal_id: "bus_1_vm_pu", value: 1.0 }],
     };
     const line = formatTickSummary(tick, "case14");
-    expect(line).toContain("tick 7");
+    expect(line).not.toMatch(/tick\s*\d/i);
     expect(line).toContain("case14");
     expect(line).toContain("2026-01-01T12:00:00Z");
     expect(line).toMatch(/1 anomal/i);

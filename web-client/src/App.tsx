@@ -16,6 +16,7 @@ import NetworkMap from "./NetworkMap";
 import {
   ManualPowerflowMark,
   TickEvent,
+  anomalyMarkersFromHistory,
   appendTick,
   clampIndex,
   isFollowLive,
@@ -168,6 +169,10 @@ export default function App() {
     () => mergePowerflowMarkers(history, manualMarks),
     [history, manualMarks],
   );
+  const anomalyMarkers = useMemo(
+    () => anomalyMarkersFromHistory(history),
+    [history],
+  );
 
   const tickSummary = formatTickSummary(selected, networkId);
   const anomalyRows = formatAnomalyRows(
@@ -255,6 +260,7 @@ export default function App() {
         </button>
         <div className="legend" aria-label="overlay legend">
           <span className="lg lg-meas">meas</span>
+          <span className="lg lg-ensemble">ensemble</span>
           <span className="lg lg-pf">pf</span>
           <span className="lg lg-rate">rating</span>
         </div>
@@ -268,6 +274,7 @@ export default function App() {
         selectedIndex={clampIndex(selectedIndex, history.length)}
         followLive={followLive}
         markers={markers}
+        anomalyMarkers={anomalyMarkers}
         onSelectIndex={onSelectIndex}
         onFollowLive={onFollowLive}
       />
@@ -278,7 +285,7 @@ export default function App() {
         <aside className="panel">
           <h2>Panels</h2>
           {error ? <p className="err">{error}</p> : null}
-          <h3>Selected tick</h3>
+          <h3>At selection</h3>
           <p className="summary-line">{tickSummary}</p>
           <h3>Anomalies at selection</h3>
           {anomalyRows.length ? (

@@ -70,8 +70,6 @@ export function formatTickSummary(
 ): string {
   if (!tick) return "Waiting for telemetry…";
   const time = tickTimestamp(tick) ?? "unknown time";
-  const tickId =
-    typeof tick.tick_index === "number" ? `tick ${tick.tick_index}` : "tick —";
   const gate = tick.gate?.action ?? "gate —";
   let pf = "pf —";
   if (tick.powerflow?.ran === true) {
@@ -86,7 +84,7 @@ export function formatTickSummary(
   }
   const n = Array.isArray(tick.anomalies) ? tick.anomalies.length : 0;
   const anom = n === 1 ? "1 anomaly" : `${n} anomalies`;
-  return `${time} · ${tickId} · ${networkId} · ${gate} · ${pf} · ${anom}`;
+  return `${time} · ${networkId} · ${gate} · ${pf} · ${anom}`;
 }
 
 export function formatAnomalyRows(

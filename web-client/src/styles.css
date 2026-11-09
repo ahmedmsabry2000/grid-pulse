@@ -98,6 +98,11 @@ body,
   background: #e27830;
 }
 
+.lg-ensemble::before {
+  background: #e27830;
+  box-shadow: inset 0 0 0 1px #1a222c;
+}
+
 .lg-pf::before {
   background: #2ea0a0;
 }
@@ -277,25 +282,58 @@ button.ghost:disabled {
 
 .pf-mark {
   position: absolute;
-  top: 50%;
-  width: 0.55rem;
-  height: 0.55rem;
-  margin-left: -0.275rem;
+  top: 70%;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: -0.2rem;
   transform: translateY(-50%);
   border: none;
   border-radius: 1px;
   padding: 0;
   cursor: pointer;
   background: #2ea0a0;
+  opacity: 0.55;
 }
 
 .pf-mark.manual {
   border-radius: 50%;
   background: #e2b04a;
+  opacity: 0.7;
 }
 
 .pf-mark.bad {
   background: var(--danger);
+}
+
+.anom-mark {
+  position: absolute;
+  top: 35%;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-left: -0.325rem;
+  transform: translateY(-50%);
+  border: 1px solid #0f1419;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.anom-mark.anom-meas,
+.anom-mark.anom-ensemble {
+  background: #e27830;
+}
+
+.anom-mark.anom-ensemble {
+  box-shadow: inset 0 0 0 2px #1a222c;
+}
+
+.anom-mark.anom-pf {
+  background: #2ea0a0;
+}
+
+.anom-mark.anom-rate {
+  background: #c44848;
 }
 
 .pf-playhead {
