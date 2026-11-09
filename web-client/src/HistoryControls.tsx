@@ -7,7 +7,6 @@ import {
   nextAnomalyIndex,
   nextPowerflowIndex,
   playheadFraction,
-  powerflowSegmentsFromHistory,
   prevAnomalyIndex,
   prevPowerflowIndex,
   timedMarkerFraction,
@@ -49,13 +48,8 @@ export default function HistoryControls({
   const nextAnom = nextAnomalyIndex(history, selectedIndex);
   const prevPf = prevPowerflowIndex(history, selectedIndex);
   const nextPf = nextPowerflowIndex(history, selectedIndex);
-  const pfSegments = powerflowSegmentsFromHistory(history);
   const pfTickCount = markers.filter((m) => m.kind === "tick").length;
   const pfManualCount = markers.filter((m) => m.kind === "manual").length;
-  const manualMarks = markers.filter((m) => m.kind === "manual");
-  const failureMarks = markers.filter(
-    (m) => m.kind === "tick" && m.converged === false,
-  );
   const playhead = `${playheadFraction(history, selectedIndex) * 100}%`;
 
   return (
@@ -149,45 +143,21 @@ export default function HistoryControls({
         <div className="timeline-rail">
           <div className="timeline-rail-label">Powerflow</div>
           <div className="pf-timeline-track pf-track" data-testid="powerflow-track">
-            {pfSegments.map((seg, i) => {
-              const left = seg.startFraction * 100;
-              const width = Math.max((seg.endFraction - seg.startFraction) * 100, 0.8);
-              return (
-                <button
-                  key={`pf-seg-${seg.startIndex}-${seg.endIndex}-${i}`}
-                  type="button"
-                  className={`pf-segment ${seg.hasFailure ? "bad" : "ok"}`}
-                  style={{ left: `${left}%`, width: `${width}%` }}
-                  title={seg.label}
-                  aria-label={seg.label}
-                  onClick={() => onSelectIndex(seg.startIndex)}
-                />
-              );
-            })}
-            {failureMarks.map((m, i) => {
+            {markers.map((m, i) => {
               const left = `${markerFraction(m, history) * 100}%`;
+              const title =
+                m.kind === "manual" ? `${m.label} (manual powerflow)` : m.label;
               return (
                 <button
-                  key={`pf-fail-${m.index}-${m.atMs}-${i}`}
+                  key={`pf-${m.kind}-${m.index}-${m.atMs}-${i}`}
                   type="button"
-                  className="pf-mark tick bad"
+                  className={`pf-mark ${m.kind} ${m.converged === false ? "bad" : "ok"}`}
                   style={{ left }}
-                  title={m.label}
-                  aria-label={m.label}
-                  onClick={() => onSelectIndex(m.index)}
-                />
-              );
-            })}
-            {manualMarks.map((m, i) => {
-              const left = `${markerFraction(m, history) * 100}%`;
-              return (
-                <button
-                  key={`pf-manual-${m.atMs}-${i}`}
-                  type="button"
-                  className="pf-mark manual"
-                  style={{ left }}
-                  title={`${m.label} (manual powerflow)`}
-                  aria-label={`${m.label} (manual powerflow)`}
+                  title={title}
+                  aria-label={title}
+                  onClick={() => {
+                    if (m.kind === "tick" && m.index >= 0) onSelectIndex(m.index);
+                  }}
                 />
               );
             })}
@@ -199,8 +169,7 @@ export default function HistoryControls({
 
         <div className="pf-timeline-caption">
           Anomalies · {anomalyMarkers.length}
-          {pfTickCount ? ` · powerflow runs · ${pfTickCount}` : ""}
-          {pfSegments.length ? ` · bands · ${pfSegments.length}` : ""}
+          {pfTickCount ? ` · powerflow · ${pfTickCount}` : ""}
           {pfManualCount ? ` · manual · ${pfManualCount}` : ""}
         </div>
       </div>

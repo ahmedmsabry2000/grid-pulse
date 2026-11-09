@@ -12,7 +12,6 @@ import {
   nextPowerflowIndex,
   playheadFraction,
   powerflowMarkersFromHistory,
-  powerflowSegmentsFromHistory,
   prevAnomalyIndex,
   prevPowerflowIndex,
   shiftSelectedIndex,
@@ -145,42 +144,11 @@ describe("powerflowMarkersFromHistory", () => {
     expect(marks[0].label).not.toMatch(/tick\s*\d/i);
     expect(marks[1].label).toMatch(/not converged|failed/i);
   });
-});
 
-describe("powerflowSegmentsFromHistory", () => {
-  it("merges consecutive powerflow runs into visible timeline segments", () => {
-    const segs = powerflowSegmentsFromHistory([t0, t1, t2, t3, t4]);
-    // t0 ran, t1 skip, t2 ran (bad), t3 ran, t4 skip
-    expect(segs.map((s) => [s.startIndex, s.endIndex])).toEqual([
-      [0, 0],
-      [2, 3],
-    ]);
-    expect(segs[1].hasFailure).toBe(true);
-    expect(segs[0].startFraction).toBe(0);
-    expect(segs[1].endFraction).toBeGreaterThan(segs[1].startFraction);
-  });
-
-  it("renders a full-span segment when every sample ran (dense buffer)", () => {
-    const hist = [
-      t0,
-      {
-        tick_index: 1,
-        measurements: [{ timestamp: "2026-01-01T00:01:00Z", signal_id: "bus_1_vm_pu", value: 1 }],
-        powerflow: { ran: true, converged: true },
-        anomalies: [],
-      },
-      t2,
-    ];
-    const segs = powerflowSegmentsFromHistory(hist);
-    expect(segs).toHaveLength(1);
-    expect(segs[0].startIndex).toBe(0);
-    expect(segs[0].endIndex).toBe(2);
-    expect(segs[0].startFraction).toBe(0);
-    expect(segs[0].endFraction).toBe(1);
-  });
-
-  it("returns empty when no powerflow ran", () => {
-    expect(powerflowSegmentsFromHistory([t1, t4])).toEqual([]);
+  it("emits one discrete marker per powerflow run (not a merged band)", () => {
+    const marks = powerflowMarkersFromHistory([t0, t1, t2, t3, t4]);
+    expect(marks.map((m) => m.index)).toEqual([0, 2, 3]);
+    expect(new Set(marks.map((m) => m.index)).size).toBe(marks.length);
   });
 });
 

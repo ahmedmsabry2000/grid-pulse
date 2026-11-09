@@ -112,9 +112,6 @@ body,
 }
 
 .lg-pfrun::before {
-  width: 0.2rem;
-  height: 0.55rem;
-  border-radius: 1px;
   background: #2ea0a0;
 }
 
@@ -303,33 +300,16 @@ button.ghost:disabled {
   overflow: hidden;
 }
 
-.pf-segment {
-  position: absolute;
-  top: 0.28rem;
-  bottom: 0.28rem;
-  border: none;
-  border-radius: 2px;
-  padding: 0;
-  cursor: pointer;
-  background: rgba(46, 160, 160, 0.72);
-  box-shadow: inset 0 0 0 1px rgba(180, 235, 230, 0.35);
-  z-index: 1;
-}
-
-.pf-segment.bad {
-  background: rgba(196, 92, 92, 0.7);
-  box-shadow: inset 0 0 0 1px rgba(255, 200, 200, 0.35);
-}
-
+/* One discrete marker per powerflow run (same shape language as anomaly dots). */
 .pf-mark {
   position: absolute;
   top: 50%;
-  width: 0.45rem;
-  height: 0.85rem;
-  margin-left: -0.225rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: -0.275rem;
   transform: translateY(-50%);
-  border: none;
-  border-radius: 1px;
+  border: 1px solid #0f1419;
+  border-radius: 50%;
   padding: 0;
   cursor: pointer;
   background: #2ea0a0;
@@ -337,10 +317,6 @@ button.ghost:disabled {
 }
 
 .pf-mark.manual {
-  width: 0.65rem;
-  height: 0.65rem;
-  margin-left: -0.325rem;
-  border-radius: 50%;
   background: #e2b04a;
 }
 
