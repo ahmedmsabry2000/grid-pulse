@@ -47,10 +47,24 @@ describe("anomaliesToOverlayHits", () => {
 });
 
 describe("viewStateFromBounds", () => {
-  it("centers and zooms to span", () => {
-    const vs = viewStateFromBounds([-1, -2, 3, 4]);
+  it("centers on bounds mid-point", () => {
+    const vs = viewStateFromBounds([-1, -2, 3, 4], { width: 800, height: 600 });
     expect(vs.target[0]).toBe(1);
     expect(vs.target[1]).toBe(1);
-    expect(vs.zoom).toBeGreaterThan(-5);
+  });
+
+  it("fits world bounds into viewport pixels (ortho zoom 0 = 1 unit/px)", () => {
+    // spanX=2, spanY=2; height-limited: log2(600*0.85/2) ≈ 8.0
+    const vs = viewStateFromBounds([-1, -1, 1, 1], { width: 800, height: 600 });
+    expect(vs.zoom).toBeCloseTo(Math.log2((600 * 0.85) / 2), 5);
+    // Old unitless formula used spanTarget=1.6 → zoom≈-0.3 and a blank map.
+    expect(vs.zoom).toBeGreaterThan(4);
+  });
+
+  it("uses the narrower viewport axis when aspect differs", () => {
+    const wide = viewStateFromBounds([0, 0, 1, 1], { width: 1600, height: 400 });
+    const tall = viewStateFromBounds([0, 0, 1, 1], { width: 400, height: 1600 });
+    expect(wide.zoom).toBeCloseTo(Math.log2((400 * 0.85) / 1), 5);
+    expect(tall.zoom).toBeCloseTo(Math.log2((400 * 0.85) / 1), 5);
   });
 });

@@ -13,6 +13,7 @@ from gridpulse.config.paths import resolve_events_path
 from gridpulse.network import UnknownNetworkError, layout_network, list_networks
 from gridpulse.ui.events import load_events
 from gridpulse.ui.powerflow_panel import run_powerflow_on_latest
+from gridpulse_server.simulator_control import SimulatorSupervisor
 from gridpulse_server.telemetry_hub import TelemetryHub, iter_existing_events
 
 
@@ -27,16 +28,23 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return load_events(path)
 
 
-def create_app(*, events_path: Path | None = None) -> FastAPI:
+def create_app(
+    *,
+    events_path: Path | None = None,
+    simulator: SimulatorSupervisor | None = None,
+) -> FastAPI:
     path = events_path if events_path is not None else resolve_events_path()
     hub = TelemetryHub(path)
+    sim = simulator if simulator is not None else SimulatorSupervisor(events_path=path)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.events_path = path
         app.state.hub = hub
+        app.state.simulator = sim
         hub.start()
         yield
+        sim.stop()
         await hub.stop()
 
     app = FastAPI(title="Grid Pulse", version="0.1.0", lifespan=lifespan)
@@ -81,6 +89,21 @@ def create_app(*, events_path: Path | None = None) -> FastAPI:
         except UnknownNetworkError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return result
+
+    @app.get("/simulator")
+    def simulator_status() -> dict[str, Any]:
+        return app.state.simulator.status()
+
+    @app.post("/simulator/start")
+    def simulator_start() -> dict[str, Any]:
+        try:
+            return app.state.simulator.start()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/simulator/stop")
+    def simulator_stop() -> dict[str, Any]:
+        return app.state.simulator.stop()
 
     @app.websocket("/ws/telemetry")
     async def ws_telemetry(ws: WebSocket) -> None:

@@ -4,8 +4,11 @@ import {
   Topology,
   fetchEvents,
   fetchNetworks,
+  fetchSimulatorStatus,
   fetchTopology,
   postPowerflow,
+  postSimulatorStart,
+  postSimulatorStop,
   wsTelemetryUrl,
 } from "./api";
 import HistoryControls from "./HistoryControls";
@@ -13,12 +16,20 @@ import NetworkMap from "./NetworkMap";
 import {
   ManualPowerflowMark,
   TickEvent,
+  anomalyMarkersFromHistory,
   appendTick,
   clampIndex,
   isFollowLive,
   mergePowerflowMarkers,
 } from "./history";
 import { AnomalyEvent, OverlayHit, anomaliesToOverlayHits } from "./overlays";
+import {
+  formatAnomalyRows,
+  formatEnsembleRows,
+  formatPowerflowSummary,
+  formatRatingRows,
+  formatTickSummary,
+} from "./panels";
 
 export default function App() {
   const [networks, setNetworks] = useState<string[]>([]);
@@ -32,6 +43,8 @@ export default function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [followLive, setFollowLive] = useState(true);
   const [manualMarks, setManualMarks] = useState<ManualPowerflowMark[]>([]);
+  const [simStatus, setSimStatus] = useState<"running" | "stopped">("stopped");
+  const [simBusy, setSimBusy] = useState(false);
   const followLiveRef = useRef(followLive);
   followLiveRef.current = followLive;
 
@@ -94,6 +107,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const st = await fetchSimulatorStatus();
+        if (!cancelled) setSimStatus(st.status);
+      } catch {
+        /* toolbar stays Stopped until operator acts */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const url = wsTelemetryUrl();
     const ws = new WebSocket(url);
     setWsState("connecting");
@@ -141,6 +169,18 @@ export default function App() {
     () => mergePowerflowMarkers(history, manualMarks),
     [history, manualMarks],
   );
+  const anomalyMarkers = useMemo(
+    () => anomalyMarkersFromHistory(history),
+    [history],
+  );
+
+  const tickSummary = formatTickSummary(selected, networkId);
+  const anomalyRows = formatAnomalyRows(
+    Array.isArray(selected?.anomalies) ? selected!.anomalies : [],
+  );
+  const pfSummary = formatPowerflowSummary(pf);
+  const ratingRows = formatRatingRows(pf?.rating_exceedances);
+  const ensembleRows = formatEnsembleRows(pf?.ensemble_anomalies);
 
   function onSelectIndex(index: number) {
     const clamped = clampIndex(index, history.length);
@@ -176,6 +216,20 @@ export default function App() {
     }
   }
 
+  async function onToggleSimulator() {
+    setSimBusy(true);
+    setError(null);
+    try {
+      const next =
+        simStatus === "running" ? await postSimulatorStop() : await postSimulatorStart();
+      setSimStatus(next.status);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSimBusy(false);
+    }
+  }
+
   return (
     <div className="app">
       <header className="toolbar">
@@ -195,13 +249,25 @@ export default function App() {
         <button type="button" disabled={busy} onClick={onRunPowerflow}>
           {busy ? "Running…" : "Run powerflow"}
         </button>
+        <button
+          type="button"
+          className="ghost sim-toggle"
+          disabled={simBusy}
+          onClick={onToggleSimulator}
+          aria-pressed={simStatus === "running"}
+        >
+          Simulator: {simBusy ? "…" : simStatus === "running" ? "Running" : "Stopped"}
+        </button>
         <div className="legend" aria-label="overlay legend">
           <span className="lg lg-meas">meas</span>
+          <span className="lg lg-ensemble">ensemble</span>
           <span className="lg lg-pf">pf</span>
           <span className="lg lg-rate">rating</span>
+          <span className="lg lg-pfrun">pf run</span>
         </div>
         <div className="status">
-          WS: {wsState} · hist {history.length} · overlays {overlays.length}
+          WS: {wsState} · sim {simStatus} · hist {history.length} · overlays{" "}
+          {overlays.length}
         </div>
       </header>
       <HistoryControls
@@ -209,6 +275,7 @@ export default function App() {
         selectedIndex={clampIndex(selectedIndex, history.length)}
         followLive={followLive}
         markers={markers}
+        anomalyMarkers={anomalyMarkers}
         onSelectIndex={onSelectIndex}
         onFollowLive={onFollowLive}
       />
@@ -219,49 +286,98 @@ export default function App() {
         <aside className="panel">
           <h2>Panels</h2>
           {error ? <p className="err">{error}</p> : null}
-          <h3>Selected tick</h3>
-          {selected ? (
-            <pre>
-              {JSON.stringify(
-                {
-                  tick_index: selected.tick_index,
-                  time: selected.measurements?.[0]?.timestamp ?? null,
-                  gate: selected.gate,
-                  powerflow: selected.powerflow,
-                  anomaly_count: Array.isArray(selected.anomalies)
-                    ? selected.anomalies.length
-                    : 0,
-                },
-                null,
-                2,
-              )}
-            </pre>
-          ) : (
-            <p className="status">Waiting for telemetry…</p>
-          )}
+          <h3>At selection</h3>
+          <p className="summary-line">{tickSummary}</p>
           <h3>Anomalies at selection</h3>
-          <pre>{JSON.stringify(selected?.anomalies ?? [], null, 2)}</pre>
+          {anomalyRows.length ? (
+            <table className="op-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Asset</th>
+                  <th>Score</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalyRows.map((row, i) => (
+                  <tr key={`${row.type}-${row.asset}-${i}`}>
+                    <td>
+                      <span className={`lg lg-${row.badge === "rating" ? "rate" : row.badge}`}>
+                        {row.badge}
+                      </span>
+                    </td>
+                    <td>{row.asset}</td>
+                    <td>{row.score}</td>
+                    <td>{row.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="status">None</p>
+          )}
           <h3>Gate / powerflow (on-demand)</h3>
           {pf ? (
-            <pre>
-              {JSON.stringify(
-                {
-                  gate: pf.gate,
-                  powerflow: pf.powerflow,
-                  ok: pf.ok,
-                  error: pf.error,
-                },
-                null,
-                2,
-              )}
-            </pre>
+            <div className="pf-summary">
+              <p className="summary-line">Gate: {pfSummary.gate}</p>
+              <p className="summary-line">{pfSummary.status}</p>
+            </div>
           ) : (
             <p className="status">Run powerflow to populate.</p>
           )}
           <h3>Rating exceedances</h3>
-          <pre>{JSON.stringify(pf?.rating_exceedances ?? [], null, 2)}</pre>
+          {ratingRows.length ? (
+            <table className="op-table">
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Qty</th>
+                  <th>Value</th>
+                  <th>Limit</th>
+                  <th>Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ratingRows.map((row, i) => (
+                  <tr key={`${row.asset}-${i}`}>
+                    <td>{row.asset}</td>
+                    <td>{row.quantity}</td>
+                    <td>{row.loading}</td>
+                    <td>{row.limit}</td>
+                    <td>{row.margin}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="status">None</p>
+          )}
           <h3>Ensemble anomalies</h3>
-          <pre>{JSON.stringify(pf?.ensemble_anomalies ?? [], null, 2)}</pre>
+          {ensembleRows.length ? (
+            <table className="op-table">
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Score</th>
+                  <th>Members</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ensembleRows.map((row, i) => (
+                  <tr key={`${row.asset}-${i}`}>
+                    <td>{row.asset}</td>
+                    <td>{row.score}</td>
+                    <td>{row.members}</td>
+                    <td>{row.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="status">None</p>
+          )}
         </aside>
       </div>
     </div>

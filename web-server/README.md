@@ -30,6 +30,9 @@ web-server/.venv/bin/uvicorn gridpulse_server.app:app --host 0.0.0.0 --port 8000
 | GET | `/networks/{id}/topology` | GeoJSON-ready buses/lines (synthetic layout) |
 | GET | `/events` | Recent Stage 6 JSONL events (`?limit=500`) for history scrubbing |
 | POST | `/powerflow` | Body `{ "network_id": "case14" }` → gate / PF / rating / ensemble panels |
+| GET | `/simulator` | `{ "status": "running"|"stopped", "pid": number|null }` |
+| POST | `/simulator/start` | Supervise `gridpulse-simulate` writing the events path |
+| POST | `/simulator/stop` | Stop the supervised simulator subprocess |
 | WS | `/ws/telemetry` | JSONL event fanout (`{"type":"telemetry","event":...}`) |
 
 ## Tests

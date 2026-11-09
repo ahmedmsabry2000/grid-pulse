@@ -7,4 +7,5 @@ alwaysApply: true
 
 - React + Vite + deck.gl OrthographicView over synthetic coords (no real GIS / Mapbox requirement).
 - Consume REST + WS: overlay measurement anomalies, PF-output anomalies, rating exceedances; `fitBounds` on topology load/change.
+- Operator panels must never show raw JSON; toolbar can start/stop the simulator via the API.
 - Own `node_modules`; vitest for helpers; keep Streamlit as a separate surface.
