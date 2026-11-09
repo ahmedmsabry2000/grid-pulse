@@ -60,6 +60,20 @@ export function tickTimeMs(event: TickEvent): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
+/** Keep the buffer time-ordered so index 0 is the left edge of the timeline. */
+export function sortHistoryByTime(history: TickEvent[]): TickEvent[] {
+  return [...history].sort((a, b) => {
+    const ta = tickTimeMs(a);
+    const tb = tickTimeMs(b);
+    if (ta != null && tb != null && ta !== tb) return ta - tb;
+    if (ta != null && tb == null) return -1;
+    if (ta == null && tb != null) return 1;
+    const ia = typeof a.tick_index === "number" ? a.tick_index : 0;
+    const ib = typeof b.tick_index === "number" ? b.tick_index : 0;
+    return ia - ib;
+  });
+}
+
 /** Scrubber / panel time label — never expose tick ids to operators. */
 export function historyTimeLabel(
   event: TickEvent | null | undefined,
@@ -184,22 +198,22 @@ export function appendTickWithShift(
   history: TickEvent[],
   event: TickEvent,
 ): AppendTickResult {
-  const next = [...history];
+  let next = [...history];
   if (typeof event.tick_index === "number") {
     const idx = next.findIndex((e) => e.tick_index === event.tick_index);
     if (idx >= 0) {
       next[idx] = event;
-      if (next.length > MAX_HISTORY) {
-        const removedFromFront = next.length - MAX_HISTORY;
-        return { history: next.slice(-MAX_HISTORY), removedFromFront };
-      }
-      return { history: next, removedFromFront: 0 };
+    } else {
+      next.push(event);
     }
+  } else {
+    next.push(event);
   }
-  next.push(event);
+  next = sortHistoryByTime(next);
   if (next.length > MAX_HISTORY) {
     const removedFromFront = next.length - MAX_HISTORY;
-    return { history: next.slice(-MAX_HISTORY), removedFromFront };
+    // Drop oldest-by-time so the left edge stays the true start of the window.
+    return { history: next.slice(removedFromFront), removedFromFront };
   }
   return { history: next, removedFromFront: 0 };
 }

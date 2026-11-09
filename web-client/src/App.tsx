@@ -24,6 +24,7 @@ import {
   shiftSelectedIndex,
   shouldAdvanceFollowLive,
   shouldIngestLiveTelemetry,
+  sortHistoryByTime,
 } from "./history";
 import { AnomalyEvent, OverlayHit, anomaliesToOverlayHits } from "./overlays";
 import {
@@ -95,21 +96,14 @@ export default function App() {
       try {
         const rows = (await fetchEvents(500)) as TickEvent[];
         if (cancelled || !rows.length) return;
-        setHistory((prev) => {
-          let next = prev;
-          let removed = 0;
-          for (const ev of rows) {
-            const result = appendTickWithShift(next, ev as TickEvent);
-            next = result.history;
-            removed += result.removedFromFront;
-          }
-          if (!followLiveRef.current && removed > 0) {
-            setSelectedIndex((idx) => shiftSelectedIndex(idx, removed, next.length));
-          }
-          return next;
-        });
+        // API/jsonl order is not guaranteed time-monotonic (restarts). Sort so
+        // index 0 is the left edge; refresh starts the playhead there.
+        const sorted = sortHistoryByTime(rows as TickEvent[]);
+        setHistory(sorted);
         if (shouldAdvanceFollowLive(simStatusRef.current, followLiveRef.current)) {
-          setSelectedIndex(Math.max(0, rows.length - 1));
+          setSelectedIndex(Math.max(0, sorted.length - 1));
+        } else {
+          setSelectedIndex(0);
         }
       } catch {
         /* WS catch-up still works if REST history fails */

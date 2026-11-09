@@ -18,6 +18,7 @@ import {
   shiftSelectedIndex,
   shouldAdvanceFollowLive,
   shouldIngestLiveTelemetry,
+  sortHistoryByTime,
   tickTimeMs,
   tickTimestamp,
 } from "./history";
@@ -285,6 +286,15 @@ describe("playheadFraction", () => {
       5,
     );
     expect(playheadFraction(uneven, 1)).not.toBeCloseTo(0.5, 2);
+  });
+});
+
+describe("sortHistoryByTime", () => {
+  it("orders samples so index 0 is the timeline start (left)", () => {
+    const shuffled = [t2, t0, t1];
+    const sorted = sortHistoryByTime(shuffled);
+    expect(sorted.map((e) => e.tick_index)).toEqual([0, 1, 2]);
+    expect(playheadFraction(sorted, 0)).toBe(0);
   });
 });
 
