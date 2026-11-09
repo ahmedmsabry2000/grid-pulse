@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   anomalyMarkersFromHistory,
   appendTick,
+  appendTickWithShift,
   clampIndex,
   historyTimeLabel,
   isFollowLive,
@@ -9,9 +10,11 @@ import {
   mergePowerflowMarkers,
   nextAnomalyIndex,
   nextPowerflowIndex,
+  playheadFraction,
   powerflowMarkersFromHistory,
   prevAnomalyIndex,
   prevPowerflowIndex,
+  shiftSelectedIndex,
   tickTimeMs,
   tickTimestamp,
 } from "./history";
@@ -65,6 +68,40 @@ describe("appendTick", () => {
     h = appendTick(h, { ...t1, anomalies: [] });
     expect(h).toHaveLength(2);
     expect(h[1].anomalies).toEqual([]);
+  });
+});
+
+describe("appendTickWithShift / shiftSelectedIndex", () => {
+  it("reports front removals when the buffer caps so scrub stays on the same sample", () => {
+    const seed = Array.from({ length: 500 }, (_, i) => ({
+      tick_index: i,
+      measurements: [
+        {
+          timestamp: `2026-01-01T00:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}Z`,
+          signal_id: "bus_1_vm_pu",
+          value: 1,
+        },
+      ],
+      anomalies:
+        i === 498
+          ? [{ type: "measurement_spike", signal_id: "bus_1_vm_pu" }]
+          : [],
+    }));
+    const selectedBefore = 498;
+    const incoming = {
+      tick_index: 500,
+      measurements: [
+        { timestamp: "2026-01-01T00:08:20Z", signal_id: "bus_1_vm_pu", value: 1 },
+      ],
+      anomalies: [],
+    };
+    const { history, removedFromFront } = appendTickWithShift(seed, incoming);
+    expect(removedFromFront).toBe(1);
+    expect(history).toHaveLength(500);
+    const selectedAfter = shiftSelectedIndex(selectedBefore, removedFromFront, history.length);
+    expect(selectedAfter).toBe(497);
+    expect(history[selectedAfter]?.tick_index).toBe(498);
+    expect(prevAnomalyIndex(history, selectedAfter + 1)).toBe(selectedAfter);
   });
 });
 
@@ -178,5 +215,52 @@ describe("prevAnomalyIndex / nextAnomalyIndex", () => {
   it("returns null when no anomalies exist", () => {
     expect(prevAnomalyIndex([t0, t2], 1)).toBe(null);
     expect(nextAnomalyIndex([t0, t2], 0)).toBe(null);
+  });
+
+  it("skips samples whose anomalies are not timeline-annotated", () => {
+    const unknownOnly = {
+      tick_index: 5,
+      measurements: [{ timestamp: "2026-01-01T00:02:30Z", signal_id: "bus_1_vm_pu", value: 1 }],
+      anomalies: [{ type: "mystery_detector", signal_id: "bus_1_vm_pu" }],
+    };
+    const hist2 = [t0, unknownOnly, t1];
+    // orange markers only at t1 (index 2); unknown-only must not be a stop
+    expect(anomalyMarkersFromHistory(hist2).map((m) => m.index)).toEqual([2]);
+    expect(nextAnomalyIndex(hist2, 0)).toBe(2);
+    expect(prevAnomalyIndex(hist2, 2)).toBe(null);
+  });
+});
+
+describe("playheadFraction", () => {
+  it("aligns the playhead with anomaly marker X on uneven time gaps", () => {
+    const uneven = [
+      {
+        tick_index: 0,
+        measurements: [{ timestamp: "2026-01-01T00:00:00Z", signal_id: "bus_1_vm_pu", value: 1 }],
+        anomalies: [],
+      },
+      {
+        tick_index: 1,
+        measurements: [{ timestamp: "2026-01-01T00:00:10Z", signal_id: "bus_1_vm_pu", value: 1 }],
+        anomalies: [{ type: "measurement_spike", signal_id: "bus_1_vm_pu" }],
+      },
+      {
+        tick_index: 2,
+        measurements: [{ timestamp: "2026-01-01T00:01:00Z", signal_id: "bus_1_vm_pu", value: 1 }],
+        anomalies: [],
+      },
+    ];
+    const marks = anomalyMarkersFromHistory(uneven);
+    expect(marks).toHaveLength(1);
+    // index fraction would be 0.5; time fraction is 10/60
+    expect(playheadFraction(uneven, 1)).toBeCloseTo(10 / 60, 5);
+    expect(playheadFraction(uneven, 1)).toBeCloseTo(
+      markerFraction(
+        { kind: "tick", index: 1, atMs: marks[0].atMs, label: "", ran: true },
+        uneven,
+      ),
+      5,
+    );
+    expect(playheadFraction(uneven, 1)).not.toBeCloseTo(0.5, 2);
   });
 });

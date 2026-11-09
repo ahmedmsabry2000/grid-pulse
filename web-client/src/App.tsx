@@ -17,10 +17,11 @@ import {
   ManualPowerflowMark,
   TickEvent,
   anomalyMarkersFromHistory,
-  appendTick,
+  appendTickWithShift,
   clampIndex,
   isFollowLive,
   mergePowerflowMarkers,
+  shiftSelectedIndex,
 } from "./history";
 import { AnomalyEvent, OverlayHit, anomaliesToOverlayHits } from "./overlays";
 import {
@@ -91,7 +92,15 @@ export default function App() {
         if (cancelled || !rows.length) return;
         setHistory((prev) => {
           let next = prev;
-          for (const ev of rows) next = appendTick(next, ev);
+          let removed = 0;
+          for (const ev of rows) {
+            const result = appendTickWithShift(next, ev as TickEvent);
+            next = result.history;
+            removed += result.removedFromFront;
+          }
+          if (!followLiveRef.current && removed > 0) {
+            setSelectedIndex((idx) => shiftSelectedIndex(idx, removed, next.length));
+          }
           return next;
         });
         if (followLiveRef.current) {
@@ -136,9 +145,16 @@ export default function App() {
         };
         if (msg.type === "telemetry" && msg.event) {
           setHistory((prev) => {
-            const next = appendTick(prev, msg.event as TickEvent);
+            const { history: next, removedFromFront } = appendTickWithShift(
+              prev,
+              msg.event as TickEvent,
+            );
             if (followLiveRef.current) {
               setSelectedIndex(next.length - 1);
+            } else if (removedFromFront > 0) {
+              setSelectedIndex((idx) =>
+                shiftSelectedIndex(idx, removedFromFront, next.length),
+              );
             }
             return next;
           });
@@ -184,11 +200,15 @@ export default function App() {
 
   function onSelectIndex(index: number) {
     const clamped = clampIndex(index, history.length);
+    const live = isFollowLive(clamped, history.length);
+    // Sync ref immediately so a concurrent WS tick cannot yank selection back to live.
+    followLiveRef.current = live;
     setSelectedIndex(clamped);
-    setFollowLive(isFollowLive(clamped, history.length));
+    setFollowLive(live);
   }
 
   function onFollowLive() {
+    followLiveRef.current = true;
     setFollowLive(true);
     if (history.length) setSelectedIndex(history.length - 1);
   }

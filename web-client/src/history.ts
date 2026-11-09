@@ -69,8 +69,10 @@ export function historyTimeLabel(
   return tickTimestamp(event) ?? "unknown time";
 }
 
-function hasAnomalies(event: TickEvent): boolean {
-  return Array.isArray(event.anomalies) && event.anomalies.length > 0;
+/** True when this sample would render an orange timeline annotation. */
+export function hasTimelineAnomaly(event: TickEvent): boolean {
+  if (!Array.isArray(event.anomalies) || event.anomalies.length === 0) return false;
+  return event.anomalies.some((a) => anomalyMarkerKind(a.type) !== null);
 }
 
 /** Map anomaly type → timeline kind (ensemble kept distinct; color ≈ meas). */
@@ -100,13 +102,12 @@ const KIND_SHORT: Record<AnomalyMarkerKind, string> = {
 export function anomalyMarkersFromHistory(history: TickEvent[]): AnomalyMarker[] {
   const out: AnomalyMarker[] = [];
   history.forEach((ev, index) => {
-    if (!hasAnomalies(ev)) return;
+    if (!hasTimelineAnomaly(ev)) return;
     const kindSet = new Set<AnomalyMarkerKind>();
     for (const a of ev.anomalies!) {
       const k = anomalyMarkerKind(a.type);
       if (k) kindSet.add(k);
     }
-    if (kindSet.size === 0) return;
     const kinds = KIND_ORDER.filter((k) => kindSet.has(k));
     const atMs = tickTimeMs(ev) ?? index;
     const time = tickTimestamp(ev) ?? "unknown time";
@@ -129,7 +130,7 @@ export function prevAnomalyIndex(
   selectedIndex: number,
 ): number | null {
   for (let i = selectedIndex - 1; i >= 0; i -= 1) {
-    if (hasAnomalies(history[i]!)) return i;
+    if (hasTimelineAnomaly(history[i]!)) return i;
   }
   return null;
 }
@@ -139,7 +140,7 @@ export function nextAnomalyIndex(
   selectedIndex: number,
 ): number | null {
   for (let i = selectedIndex + 1; i < history.length; i += 1) {
-    if (hasAnomalies(history[i]!)) return i;
+    if (hasTimelineAnomaly(history[i]!)) return i;
   }
   return null;
 }
@@ -168,18 +169,54 @@ export function nextPowerflowIndex(
   return null;
 }
 
-/** Append a tick, de-dupe by tick_index when present, cap length. */
-export function appendTick(history: TickEvent[], event: TickEvent): TickEvent[] {
+export type AppendTickResult = {
+  history: TickEvent[];
+  /** How many samples fell off the front when the buffer capped. */
+  removedFromFront: number;
+};
+
+/**
+ * Append a tick, de-dupe by tick_index when present, cap length.
+ * Callers must subtract ``removedFromFront`` from a scrubbed selectedIndex
+ * so Prev/Next anomaly stays on the same sample as its orange marker.
+ */
+export function appendTickWithShift(
+  history: TickEvent[],
+  event: TickEvent,
+): AppendTickResult {
   const next = [...history];
   if (typeof event.tick_index === "number") {
     const idx = next.findIndex((e) => e.tick_index === event.tick_index);
     if (idx >= 0) {
       next[idx] = event;
-      return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+      if (next.length > MAX_HISTORY) {
+        const removedFromFront = next.length - MAX_HISTORY;
+        return { history: next.slice(-MAX_HISTORY), removedFromFront };
+      }
+      return { history: next, removedFromFront: 0 };
     }
   }
   next.push(event);
-  return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+  if (next.length > MAX_HISTORY) {
+    const removedFromFront = next.length - MAX_HISTORY;
+    return { history: next.slice(-MAX_HISTORY), removedFromFront };
+  }
+  return { history: next, removedFromFront: 0 };
+}
+
+/** Append a tick, de-dupe by tick_index when present, cap length. */
+export function appendTick(history: TickEvent[], event: TickEvent): TickEvent[] {
+  return appendTickWithShift(history, event).history;
+}
+
+/** Keep scrub selection attached to the same sample after a front trim. */
+export function shiftSelectedIndex(
+  selectedIndex: number,
+  removedFromFront: number,
+  nextLength: number,
+): number {
+  if (removedFromFront <= 0) return clampIndex(selectedIndex, nextLength);
+  return clampIndex(selectedIndex - removedFromFront, nextLength);
 }
 
 export function clampIndex(index: number, length: number): number {
@@ -230,6 +267,15 @@ export function timedMarkerFraction(
     return Math.max(0, Math.min(1, fallbackIndex / (history.length - 1)));
   }
   return Math.max(0, Math.min(1, (atMs - min) / (max - min)));
+}
+
+/** Playhead X on the timeline — same time axis as anomaly / PF markers. */
+export function playheadFraction(history: TickEvent[], selectedIndex: number): number {
+  if (history.length <= 1) return 0;
+  const idx = clampIndex(selectedIndex, history.length);
+  const ev = history[idx]!;
+  const atMs = tickTimeMs(ev) ?? idx;
+  return timedMarkerFraction(atMs, history, idx);
 }
 
 export function mergePowerflowMarkers(

@@ -6,6 +6,7 @@ import {
   markerFraction,
   nextAnomalyIndex,
   nextPowerflowIndex,
+  playheadFraction,
   prevAnomalyIndex,
   prevPowerflowIndex,
   timedMarkerFraction,
@@ -143,7 +144,7 @@ export default function HistoryControls({
           {history.length > 0 ? (
             <div
               className="pf-playhead"
-              style={{ left: `${max === 0 ? 0 : (selectedIndex / max) * 100}%` }}
+              style={{ left: `${playheadFraction(history, selectedIndex) * 100}%` }}
               aria-hidden
             />
           ) : null}
