@@ -1,8 +1,10 @@
+import { useCallback, useRef } from "react";
 import {
   AnomalyMarker,
   PowerflowMarker,
   TickEvent,
   historyTimeLabel,
+  indexFromTimelineFraction,
   markerFraction,
   nextAnomalyIndex,
   nextPowerflowIndex,
@@ -41,9 +43,9 @@ export default function HistoryControls({
   onSelectIndex,
   onFollowLive,
 }: Props) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const selected = history[selectedIndex];
   const label = historyTimeLabel(selected, selectedIndex);
-  const max = Math.max(0, history.length - 1);
   const prevAnom = prevAnomalyIndex(history, selectedIndex);
   const nextAnom = nextAnomalyIndex(history, selectedIndex);
   const prevPf = prevPowerflowIndex(history, selectedIndex);
@@ -52,20 +54,22 @@ export default function HistoryControls({
   const pfManualCount = markers.filter((m) => m.kind === "manual").length;
   const playhead = `${playheadFraction(history, selectedIndex) * 100}%`;
 
+  const scrubFromPointer = useCallback(
+    (clientX: number) => {
+      const el = trackRef.current;
+      if (!el || history.length === 0) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const fraction = (clientX - rect.left) / rect.width;
+      onSelectIndex(indexFromTimelineFraction(history, fraction));
+    },
+    [history, onSelectIndex],
+  );
+
   return (
     <div className="history-controls" data-testid="history-controls">
       <div className="history-row">
-        <label htmlFor="history-slider">History</label>
-        <input
-          id="history-slider"
-          type="range"
-          min={0}
-          max={max}
-          value={history.length ? selectedIndex : 0}
-          disabled={history.length === 0}
-          onChange={(e) => onSelectIndex(Number(e.target.value))}
-          aria-valuetext={label}
-        />
+        <span className="history-nav-label">Timeline</span>
         <button
           type="button"
           className="ghost"
@@ -115,62 +119,82 @@ export default function HistoryControls({
       </div>
 
       <div className="timeline-stack" aria-label="History timeline">
-        <div className="timeline-rail">
-          <div className="timeline-rail-label">Anomalies</div>
-          <div className="pf-timeline-track anom-track">
-            {anomalyMarkers.map((m, i) => {
-              const left = `${timedMarkerFraction(m.atMs, history, m.index) * 100}%`;
-              const primary = m.kinds[0] ?? "measurement";
-              return (
-                <button
-                  key={`anom-${m.index}-${m.atMs}-${i}`}
-                  type="button"
-                  className={`anom-mark ${KIND_CLASS[primary] ?? "anom-meas"}`}
-                  style={{ left }}
-                  title={m.label}
-                  aria-label={m.label}
-                  data-kinds={m.kinds.join(",")}
-                  onClick={() => onSelectIndex(m.index)}
-                />
-              );
-            })}
-            {history.length > 0 ? (
-              <div className="pf-playhead" style={{ left: playhead }} aria-hidden />
-            ) : null}
-          </div>
+        <div
+          ref={trackRef}
+          className="pf-timeline-track unified-track"
+          data-testid="unified-timeline"
+          role="slider"
+          tabIndex={history.length ? 0 : -1}
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, history.length - 1)}
+          aria-valuenow={history.length ? selectedIndex : 0}
+          aria-valuetext={label}
+          aria-label="Hover timeline to scrub history"
+          onMouseMove={(e) => scrubFromPointer(e.clientX)}
+          onClick={(e) => scrubFromPointer(e.clientX)}
+          onKeyDown={(e) => {
+            if (!history.length) return;
+            if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              onSelectIndex(Math.max(0, selectedIndex - 1));
+            } else if (e.key === "ArrowRight") {
+              e.preventDefault();
+              onSelectIndex(Math.min(history.length - 1, selectedIndex + 1));
+            } else if (e.key === "Home") {
+              e.preventDefault();
+              onSelectIndex(0);
+            } else if (e.key === "End") {
+              e.preventDefault();
+              onSelectIndex(history.length - 1);
+            }
+          }}
+        >
+          {markers.map((m, i) => {
+            const left = `${markerFraction(m, history) * 100}%`;
+            const title =
+              m.kind === "manual" ? `${m.label} (manual powerflow)` : m.label;
+            return (
+              <button
+                key={`pf-${m.kind}-${m.index}-${m.atMs}-${i}`}
+                type="button"
+                className={`pf-mark ${m.kind} ${m.converged === false ? "bad" : "ok"}`}
+                style={{ left }}
+                title={title}
+                aria-label={title}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (m.kind === "tick" && m.index >= 0) onSelectIndex(m.index);
+                }}
+              />
+            );
+          })}
+          {anomalyMarkers.map((m, i) => {
+            const left = `${timedMarkerFraction(m.atMs, history, m.index) * 100}%`;
+            const primary = m.kinds[0] ?? "measurement";
+            return (
+              <button
+                key={`anom-${m.index}-${m.atMs}-${i}`}
+                type="button"
+                className={`anom-mark ${KIND_CLASS[primary] ?? "anom-meas"}`}
+                style={{ left }}
+                title={m.label}
+                aria-label={m.label}
+                data-kinds={m.kinds.join(",")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectIndex(m.index);
+                }}
+              />
+            );
+          })}
+          {history.length > 0 ? (
+            <div className="pf-playhead" style={{ left: playhead }} aria-hidden />
+          ) : null}
         </div>
-
-        <div className="timeline-rail">
-          <div className="timeline-rail-label">Powerflow</div>
-          <div className="pf-timeline-track pf-track" data-testid="powerflow-track">
-            {markers.map((m, i) => {
-              const left = `${markerFraction(m, history) * 100}%`;
-              const title =
-                m.kind === "manual" ? `${m.label} (manual powerflow)` : m.label;
-              return (
-                <button
-                  key={`pf-${m.kind}-${m.index}-${m.atMs}-${i}`}
-                  type="button"
-                  className={`pf-mark ${m.kind} ${m.converged === false ? "bad" : "ok"}`}
-                  style={{ left }}
-                  title={title}
-                  aria-label={title}
-                  onClick={() => {
-                    if (m.kind === "tick" && m.index >= 0) onSelectIndex(m.index);
-                  }}
-                />
-              );
-            })}
-            {history.length > 0 ? (
-              <div className="pf-playhead" style={{ left: playhead }} aria-hidden />
-            ) : null}
-          </div>
-        </div>
-
         <div className="pf-timeline-caption">
-          Anomalies · {anomalyMarkers.length}
-          {pfTickCount ? ` · powerflow · ${pfTickCount}` : ""}
-          {pfManualCount ? ` · manual · ${pfManualCount}` : ""}
+          Hover timeline to scrub · anomalies {anomalyMarkers.length}
+          {pfTickCount ? ` · powerflow ${pfTickCount}` : ""}
+          {pfManualCount ? ` · manual ${pfManualCount}` : ""}
         </div>
       </div>
     </div>

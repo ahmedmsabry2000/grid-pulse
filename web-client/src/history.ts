@@ -293,6 +293,36 @@ export function playheadFraction(history: TickEvent[], selectedIndex: number): n
   return timedMarkerFraction(atMs, history, idx);
 }
 
+/**
+ * Map a 0..1 hover position on the timeline to the nearest history sample
+ * (same time axis as markers / playhead).
+ */
+export function indexFromTimelineFraction(
+  history: TickEvent[],
+  fraction: number,
+): number {
+  if (history.length <= 0) return 0;
+  if (history.length === 1) return 0;
+  const f = Math.max(0, Math.min(1, fraction));
+  const times = history.map((e, i) => tickTimeMs(e) ?? i);
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  if (max === min) {
+    return clampIndex(Math.round(f * (history.length - 1)), history.length);
+  }
+  const target = min + f * (max - min);
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < times.length; i += 1) {
+    const dist = Math.abs(times[i]! - target);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  }
+  return best;
+}
+
 export function mergePowerflowMarkers(
   history: TickEvent[],
   manual: ManualPowerflowMark[],

@@ -5,6 +5,7 @@ import {
   appendTickWithShift,
   clampIndex,
   historyTimeLabel,
+  indexFromTimelineFraction,
   isFollowLive,
   markerFraction,
   mergePowerflowMarkers,
@@ -284,5 +285,29 @@ describe("playheadFraction", () => {
       5,
     );
     expect(playheadFraction(uneven, 1)).not.toBeCloseTo(0.5, 2);
+  });
+});
+
+describe("indexFromTimelineFraction", () => {
+  it("maps a hover fraction to the nearest sample on the time axis", () => {
+    const hist = [t0, t1, t2];
+    expect(indexFromTimelineFraction(hist, 0)).toBe(0);
+    expect(indexFromTimelineFraction(hist, 1)).toBe(2);
+    expect(indexFromTimelineFraction(hist, 0.5)).toBe(1);
+  });
+
+  it("clamps out-of-range fractions and empty history", () => {
+    expect(indexFromTimelineFraction([], 0.5)).toBe(0);
+    expect(indexFromTimelineFraction([t0], 0.9)).toBe(0);
+    expect(indexFromTimelineFraction([t0, t1, t2], -1)).toBe(0);
+    expect(indexFromTimelineFraction([t0, t1, t2], 2)).toBe(2);
+  });
+
+  it("round-trips with playheadFraction for each sample", () => {
+    const hist = [t0, t1, t2, t3, t4];
+    for (let i = 0; i < hist.length; i += 1) {
+      const f = playheadFraction(hist, i);
+      expect(indexFromTimelineFraction(hist, f)).toBe(i);
+    }
   });
 });
