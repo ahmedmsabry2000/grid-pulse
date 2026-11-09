@@ -7,6 +7,7 @@ import {
   nextAnomalyIndex,
   nextPowerflowIndex,
   playheadFraction,
+  powerflowSegmentsFromHistory,
   prevAnomalyIndex,
   prevPowerflowIndex,
   timedMarkerFraction,
@@ -45,8 +46,14 @@ export default function HistoryControls({
   const nextAnom = nextAnomalyIndex(history, selectedIndex);
   const prevPf = prevPowerflowIndex(history, selectedIndex);
   const nextPf = nextPowerflowIndex(history, selectedIndex);
+  const pfSegments = powerflowSegmentsFromHistory(history);
   const pfTickCount = markers.filter((m) => m.kind === "tick").length;
   const pfManualCount = markers.filter((m) => m.kind === "manual").length;
+  const manualMarks = markers.filter((m) => m.kind === "manual");
+  const failureMarks = markers.filter(
+    (m) => m.kind === "tick" && m.converged === false,
+  );
+  const playhead = `${playheadFraction(history, selectedIndex) * 100}%`;
 
   return (
     <div className="history-controls" data-testid="history-controls">
@@ -103,55 +110,88 @@ export default function HistoryControls({
         </button>
         <span className="history-label">{label}</span>
       </div>
-      <div className="pf-timeline" aria-label="History timeline">
-        <div className="pf-timeline-track">
-          {markers.map((m, i) => {
-            const left = `${markerFraction(m, history) * 100}%`;
-            const title =
-              m.kind === "manual"
-                ? `${m.label} (manual powerflow)`
-                : m.label;
-            return (
-              <button
-                key={`pf-${m.kind}-${m.index}-${m.atMs}-${i}`}
-                type="button"
-                className={`pf-mark ${m.kind} ${m.converged === false ? "bad" : "ok"}`}
-                style={{ left }}
-                title={title}
-                aria-label={title}
-                onClick={() => {
-                  if (m.kind === "tick" && m.index >= 0) onSelectIndex(m.index);
-                }}
-              />
-            );
-          })}
-          {anomalyMarkers.map((m, i) => {
-            const left = `${timedMarkerFraction(m.atMs, history, m.index) * 100}%`;
-            const primary = m.kinds[0] ?? "measurement";
-            return (
-              <button
-                key={`anom-${m.index}-${m.atMs}-${i}`}
-                type="button"
-                className={`anom-mark ${KIND_CLASS[primary] ?? "anom-meas"}`}
-                style={{ left }}
-                title={m.label}
-                aria-label={m.label}
-                data-kinds={m.kinds.join(",")}
-                onClick={() => onSelectIndex(m.index)}
-              />
-            );
-          })}
-          {history.length > 0 ? (
-            <div
-              className="pf-playhead"
-              style={{ left: `${playheadFraction(history, selectedIndex) * 100}%` }}
-              aria-hidden
-            />
-          ) : null}
+
+      <div className="timeline-stack" aria-label="History timeline">
+        <div className="timeline-rail">
+          <div className="timeline-rail-label">Anomalies</div>
+          <div className="pf-timeline-track anom-track">
+            {anomalyMarkers.map((m, i) => {
+              const left = `${timedMarkerFraction(m.atMs, history, m.index) * 100}%`;
+              const primary = m.kinds[0] ?? "measurement";
+              return (
+                <button
+                  key={`anom-${m.index}-${m.atMs}-${i}`}
+                  type="button"
+                  className={`anom-mark ${KIND_CLASS[primary] ?? "anom-meas"}`}
+                  style={{ left }}
+                  title={m.label}
+                  aria-label={m.label}
+                  data-kinds={m.kinds.join(",")}
+                  onClick={() => onSelectIndex(m.index)}
+                />
+              );
+            })}
+            {history.length > 0 ? (
+              <div className="pf-playhead" style={{ left: playhead }} aria-hidden />
+            ) : null}
+          </div>
         </div>
+
+        <div className="timeline-rail">
+          <div className="timeline-rail-label">Powerflow</div>
+          <div className="pf-timeline-track pf-track" data-testid="powerflow-track">
+            {pfSegments.map((seg, i) => {
+              const left = seg.startFraction * 100;
+              const width = Math.max((seg.endFraction - seg.startFraction) * 100, 0.8);
+              return (
+                <button
+                  key={`pf-seg-${seg.startIndex}-${seg.endIndex}-${i}`}
+                  type="button"
+                  className={`pf-segment ${seg.hasFailure ? "bad" : "ok"}`}
+                  style={{ left: `${left}%`, width: `${width}%` }}
+                  title={seg.label}
+                  aria-label={seg.label}
+                  onClick={() => onSelectIndex(seg.startIndex)}
+                />
+              );
+            })}
+            {failureMarks.map((m, i) => {
+              const left = `${markerFraction(m, history) * 100}%`;
+              return (
+                <button
+                  key={`pf-fail-${m.index}-${m.atMs}-${i}`}
+                  type="button"
+                  className="pf-mark tick bad"
+                  style={{ left }}
+                  title={m.label}
+                  aria-label={m.label}
+                  onClick={() => onSelectIndex(m.index)}
+                />
+              );
+            })}
+            {manualMarks.map((m, i) => {
+              const left = `${markerFraction(m, history) * 100}%`;
+              return (
+                <button
+                  key={`pf-manual-${m.atMs}-${i}`}
+                  type="button"
+                  className="pf-mark manual"
+                  style={{ left }}
+                  title={`${m.label} (manual powerflow)`}
+                  aria-label={`${m.label} (manual powerflow)`}
+                />
+              );
+            })}
+            {history.length > 0 ? (
+              <div className="pf-playhead" style={{ left: playhead }} aria-hidden />
+            ) : null}
+          </div>
+        </div>
+
         <div className="pf-timeline-caption">
           Anomalies · {anomalyMarkers.length}
-          {pfTickCount ? ` · powerflow · ${pfTickCount}` : ""}
+          {pfTickCount ? ` · powerflow runs · ${pfTickCount}` : ""}
+          {pfSegments.length ? ` · bands · ${pfSegments.length}` : ""}
           {pfManualCount ? ` · manual · ${pfManualCount}` : ""}
         </div>
       </div>

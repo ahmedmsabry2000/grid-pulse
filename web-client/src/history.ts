@@ -253,6 +253,69 @@ export function powerflowMarkersFromHistory(history: TickEvent[]): PowerflowMark
   return out;
 }
 
+export type PowerflowSegment = {
+  startIndex: number;
+  endIndex: number;
+  startFraction: number;
+  endFraction: number;
+  hasFailure: boolean;
+  label: string;
+};
+
+/**
+ * Merge consecutive `powerflow.ran` samples into timeline bands.
+ * Dense buffers (PF every tick) become one visible span instead of invisible hairlines.
+ */
+export function powerflowSegmentsFromHistory(history: TickEvent[]): PowerflowSegment[] {
+  const segs: PowerflowSegment[] = [];
+  let start: number | null = null;
+  let hasFailure = false;
+
+  const flush = (endIndex: number) => {
+    if (start === null) return;
+    const startEv = history[start]!;
+    const endEv = history[endIndex]!;
+    const startFraction = timedMarkerFraction(
+      tickTimeMs(startEv) ?? start,
+      history,
+      start,
+    );
+    const endFraction = timedMarkerFraction(
+      tickTimeMs(endEv) ?? endIndex,
+      history,
+      endIndex,
+    );
+    const startTime = tickTimestamp(startEv) ?? "unknown time";
+    const endTime = tickTimestamp(endEv) ?? startTime;
+    const n = endIndex - start + 1;
+    const status = hasFailure ? "incl. not converged" : "ok";
+    segs.push({
+      startIndex: start,
+      endIndex,
+      startFraction,
+      endFraction: Math.max(endFraction, startFraction),
+      hasFailure,
+      label:
+        n === 1
+          ? `${startTime} · powerflow ${status}`
+          : `${startTime} → ${endTime} · ${n} powerflow runs (${status})`,
+    });
+    start = null;
+    hasFailure = false;
+  };
+
+  history.forEach((ev, index) => {
+    if (powerflowRan(ev)) {
+      if (start === null) start = index;
+      if (ev.powerflow?.converged === false) hasFailure = true;
+      return;
+    }
+    if (start !== null) flush(index - 1);
+  });
+  if (start !== null) flush(history.length - 1);
+  return segs;
+}
+
 /** Fraction 0..1 for any timed marker along the history span. */
 export function timedMarkerFraction(
   atMs: number,

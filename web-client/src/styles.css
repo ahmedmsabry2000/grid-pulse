@@ -274,8 +274,23 @@ button.ghost:disabled {
   cursor: default;
 }
 
-.pf-timeline {
+.timeline-stack {
   margin-top: 0.55rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.timeline-rail {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.timeline-rail-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: right;
 }
 
 .pf-timeline-track {
@@ -285,27 +300,46 @@ button.ghost:disabled {
   background:
     linear-gradient(90deg, #1c2834 0%, #243040 50%, #1c2834 100%);
   border: 1px solid #2a3542;
+  overflow: hidden;
+}
+
+.pf-segment {
+  position: absolute;
+  top: 0.28rem;
+  bottom: 0.28rem;
+  border: none;
+  border-radius: 2px;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(46, 160, 160, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(180, 235, 230, 0.35);
+  z-index: 1;
+}
+
+.pf-segment.bad {
+  background: rgba(196, 92, 92, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(255, 200, 200, 0.35);
 }
 
 .pf-mark {
   position: absolute;
-  top: 72%;
-  width: 0.22rem;
-  height: 0.72rem;
-  margin-left: -0.11rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.85rem;
+  margin-left: -0.225rem;
   transform: translateY(-50%);
   border: none;
   border-radius: 1px;
   padding: 0;
   cursor: pointer;
   background: #2ea0a0;
-  z-index: 1;
+  z-index: 2;
 }
 
 .pf-mark.manual {
-  width: 0.55rem;
-  height: 0.55rem;
-  margin-left: -0.275rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-left: -0.325rem;
   border-radius: 50%;
   background: #e2b04a;
 }
@@ -316,7 +350,7 @@ button.ghost:disabled {
 
 .anom-mark {
   position: absolute;
-  top: 35%;
+  top: 50%;
   width: 0.65rem;
   height: 0.65rem;
   margin-left: -0.325rem;
@@ -325,7 +359,7 @@ button.ghost:disabled {
   border-radius: 50%;
   padding: 0;
   cursor: pointer;
-  z-index: 1;
+  z-index: 2;
 }
 
 .anom-mark.anom-meas,
