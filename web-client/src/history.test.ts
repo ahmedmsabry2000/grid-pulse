@@ -16,6 +16,8 @@ import {
   prevAnomalyIndex,
   prevPowerflowIndex,
   shiftSelectedIndex,
+  shouldAdvanceFollowLive,
+  shouldIngestLiveTelemetry,
   tickTimeMs,
   tickTimestamp,
 } from "./history";
@@ -111,6 +113,20 @@ describe("clampIndex / isFollowLive", () => {
     expect(clampIndex(99, 3)).toBe(2);
     expect(isFollowLive(2, 3)).toBe(true);
     expect(isFollowLive(1, 3)).toBe(false);
+  });
+});
+
+describe("shouldIngestLiveTelemetry / shouldAdvanceFollowLive", () => {
+  it("freezes ingest and follow-live while simulator is stopped", () => {
+    expect(shouldIngestLiveTelemetry("stopped")).toBe(false);
+    expect(shouldAdvanceFollowLive("stopped", true)).toBe(false);
+    expect(shouldAdvanceFollowLive("stopped", false)).toBe(false);
+  });
+
+  it("allows ingest while running; follow-live only when enabled", () => {
+    expect(shouldIngestLiveTelemetry("running")).toBe(true);
+    expect(shouldAdvanceFollowLive("running", true)).toBe(true);
+    expect(shouldAdvanceFollowLive("running", false)).toBe(false);
   });
 });
 

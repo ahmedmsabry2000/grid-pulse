@@ -229,6 +229,21 @@ export function isFollowLive(selectedIndex: number, length: number): boolean {
   return selectedIndex >= length - 1;
 }
 
+export type SimulatorRunStatus = "running" | "stopped";
+
+/** When stopped, ignore live WS ticks so the operator view stays frozen. */
+export function shouldIngestLiveTelemetry(simStatus: SimulatorRunStatus): boolean {
+  return simStatus === "running";
+}
+
+/** Follow-live may advance the scrubber only while the simulator is running. */
+export function shouldAdvanceFollowLive(
+  simStatus: SimulatorRunStatus,
+  followLive: boolean,
+): boolean {
+  return simStatus === "running" && followLive;
+}
+
 export function powerflowMarkersFromHistory(history: TickEvent[]): PowerflowMarker[] {
   const out: PowerflowMarker[] = [];
   history.forEach((ev, index) => {

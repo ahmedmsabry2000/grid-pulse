@@ -17,6 +17,8 @@ type Props = {
   history: TickEvent[];
   selectedIndex: number;
   followLive: boolean;
+  /** When false, Follow live stays disabled (simulator stopped). */
+  liveFollowAllowed: boolean;
   markers: PowerflowMarker[];
   anomalyMarkers: AnomalyMarker[];
   onSelectIndex: (index: number) => void;
@@ -34,6 +36,7 @@ export default function HistoryControls({
   history,
   selectedIndex,
   followLive,
+  liveFollowAllowed,
   markers,
   anomalyMarkers,
   onSelectIndex,
@@ -105,7 +108,13 @@ export default function HistoryControls({
         >
           Next powerflow
         </button>
-        <button type="button" className="ghost" disabled={followLive} onClick={onFollowLive}>
+        <button
+          type="button"
+          className="ghost"
+          disabled={!liveFollowAllowed || followLive}
+          onClick={onFollowLive}
+          title={liveFollowAllowed ? undefined : "Start the simulator to follow live"}
+        >
           {followLive ? "Live" : "Follow live"}
         </button>
         <span className="history-label">{label}</span>

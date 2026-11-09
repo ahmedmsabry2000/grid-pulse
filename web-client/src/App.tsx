@@ -22,6 +22,8 @@ import {
   isFollowLive,
   mergePowerflowMarkers,
   shiftSelectedIndex,
+  shouldAdvanceFollowLive,
+  shouldIngestLiveTelemetry,
 } from "./history";
 import { AnomalyEvent, OverlayHit, anomaliesToOverlayHits } from "./overlays";
 import {
@@ -42,12 +44,15 @@ export default function App() {
   const [wsState, setWsState] = useState("connecting");
   const [history, setHistory] = useState<TickEvent[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [followLive, setFollowLive] = useState(true);
+  // Default off until simulator is confirmed running (avoids scrubber drift while stopped).
+  const [followLive, setFollowLive] = useState(false);
   const [manualMarks, setManualMarks] = useState<ManualPowerflowMark[]>([]);
   const [simStatus, setSimStatus] = useState<"running" | "stopped">("stopped");
   const [simBusy, setSimBusy] = useState(false);
   const followLiveRef = useRef(followLive);
+  const simStatusRef = useRef(simStatus);
   followLiveRef.current = followLive;
+  simStatusRef.current = simStatus;
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +108,7 @@ export default function App() {
           }
           return next;
         });
-        if (followLiveRef.current) {
+        if (shouldAdvanceFollowLive(simStatusRef.current, followLiveRef.current)) {
           setSelectedIndex(Math.max(0, rows.length - 1));
         }
       } catch {
@@ -120,7 +125,14 @@ export default function App() {
     (async () => {
       try {
         const st = await fetchSimulatorStatus();
-        if (!cancelled) setSimStatus(st.status);
+        if (cancelled) return;
+        setSimStatus(st.status);
+        simStatusRef.current = st.status;
+        if (st.status === "stopped") {
+          // Freeze scrubber where it is — do not follow a stopped feed.
+          followLiveRef.current = false;
+          setFollowLive(false);
+        }
       } catch {
         /* toolbar stays Stopped until operator acts */
       }
@@ -143,22 +155,22 @@ export default function App() {
           type: string;
           event?: TickEvent;
         };
-        if (msg.type === "telemetry" && msg.event) {
-          setHistory((prev) => {
-            const { history: next, removedFromFront } = appendTickWithShift(
-              prev,
-              msg.event as TickEvent,
+        if (msg.type !== "telemetry" || !msg.event) return;
+        if (!shouldIngestLiveTelemetry(simStatusRef.current)) return;
+        setHistory((prev) => {
+          const { history: next, removedFromFront } = appendTickWithShift(
+            prev,
+            msg.event as TickEvent,
+          );
+          if (shouldAdvanceFollowLive(simStatusRef.current, followLiveRef.current)) {
+            setSelectedIndex(next.length - 1);
+          } else if (removedFromFront > 0) {
+            setSelectedIndex((idx) =>
+              shiftSelectedIndex(idx, removedFromFront, next.length),
             );
-            if (followLiveRef.current) {
-              setSelectedIndex(next.length - 1);
-            } else if (removedFromFront > 0) {
-              setSelectedIndex((idx) =>
-                shiftSelectedIndex(idx, removedFromFront, next.length),
-              );
-            }
-            return next;
-          });
-        }
+          }
+          return next;
+        });
       } catch {
         /* ignore malformed */
       }
@@ -200,7 +212,9 @@ export default function App() {
 
   function onSelectIndex(index: number) {
     const clamped = clampIndex(index, history.length);
-    const live = isFollowLive(clamped, history.length);
+    // Follow-live only while the simulator is actually running.
+    const live =
+      simStatusRef.current === "running" && isFollowLive(clamped, history.length);
     // Sync ref immediately so a concurrent WS tick cannot yank selection back to live.
     followLiveRef.current = live;
     setSelectedIndex(clamped);
@@ -208,6 +222,7 @@ export default function App() {
   }
 
   function onFollowLive() {
+    if (simStatusRef.current !== "running") return;
     followLiveRef.current = true;
     setFollowLive(true);
     if (history.length) setSelectedIndex(history.length - 1);
@@ -242,7 +257,18 @@ export default function App() {
     try {
       const next =
         simStatus === "running" ? await postSimulatorStop() : await postSimulatorStart();
+      simStatusRef.current = next.status;
       setSimStatus(next.status);
+      if (next.status === "stopped") {
+        followLiveRef.current = false;
+        setFollowLive(false);
+      } else {
+        followLiveRef.current = true;
+        setFollowLive(true);
+        setSelectedIndex((idx) =>
+          history.length ? history.length - 1 : idx,
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -294,6 +320,7 @@ export default function App() {
         history={history}
         selectedIndex={clampIndex(selectedIndex, history.length)}
         followLive={followLive}
+        liveFollowAllowed={simStatus === "running"}
         markers={markers}
         anomalyMarkers={anomalyMarkers}
         onSelectIndex={onSelectIndex}
